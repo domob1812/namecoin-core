@@ -7,6 +7,7 @@
 #include "main.h"
 #include "names/common.h"
 #include "names/main.h"
+#include "names/unotrie.h"
 #include "primitives/transaction.h"
 #include "rpcserver.h"
 #include "script/names.h"

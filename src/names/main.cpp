@@ -317,26 +317,6 @@ CNameMemPool::checkTx (const CTransaction& tx) const
 }
 
 /* ************************************************************************** */
-/* CUnoTrie.  */
-
-void
-CUnoTrie::Clear ()
-{
-  if (data)
-    delete data;
-  data = NULL;
-
-  BOOST_FOREACH(PAIRTYPE(unsigned char, CUnoTrie*) child, children)
-    delete child.second;
-  children.clear ();
-}
-
-CUnoTrie::~CUnoTrie ()
-{
-  Clear ();
-}
-
-/* ************************************************************************** */
 
 bool
 CheckNameTransaction (const CTransaction& tx, unsigned nHeight,
