@@ -99,9 +99,10 @@ public:
    * @param a Start of the prefix.
    * @param b End of the prefix.
    * @param d Data of the name to put there.
+   * @param expanded Whether or not to build an "expanded" trie.
    */
-  void Insert (valtype::const_iterator a, const valtype::const_iterator& b,
-               const CNameData& d);
+  void Set (valtype::const_iterator a, const valtype::const_iterator& b,
+            const CNameData& d, bool expanded = false);
 
   /* Implement serialisation.  This is *not* used for hashing!  Hashing
      is done by GetHash in an ad-hoc fashion, since it does resolve

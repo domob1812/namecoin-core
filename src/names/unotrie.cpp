@@ -70,8 +70,8 @@ CUnoTrie::GetHash () const
 }
 
 void
-CUnoTrie::Insert (valtype::const_iterator a, const valtype::const_iterator& b,
-                  const CNameData& d)
+CUnoTrie::Set (valtype::const_iterator a, const valtype::const_iterator& b,
+               const CNameData& d, bool expanded)
 {
   /* Follow the prefix as far as possible.  */
   valtype::const_iterator i = prefix.begin ();
@@ -123,10 +123,16 @@ CUnoTrie::Insert (valtype::const_iterator a, const valtype::const_iterator& b,
       if (mi == children.end ())
         {
           std::auto_ptr<CUnoTrie> newChild;
-          newChild.reset (new CUnoTrie (a, b, new CNameData (d)));
+          if (expanded)
+            {
+              newChild.reset (new CUnoTrie ());
+              newChild->Set (a, b, d, expanded);
+            }
+          else
+            newChild.reset (new CUnoTrie (a, b, new CNameData (d)));
           children.insert (std::make_pair (nextByte, newChild.release ()));
         }
       else
-        mi->second->Insert (a, b, d);
+        mi->second->Set (a, b, d, expanded);
     }
 }
