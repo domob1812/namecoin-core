@@ -66,6 +66,27 @@ private:
    */
   void Clear ();
 
+  /**
+   * Check if this is an empty leaf node (should not happen).
+   * @return True if it is.
+   */
+  inline bool
+  IsEmptyLeaf () const
+  {
+    return data == NULL && children.empty ();
+  }
+
+  /**
+   * Check if this is a "pure edge".  Should not happen unless the trie
+   * is expanded.
+   * @return True if it is.
+   */
+  inline bool
+  IsPureEdge () const
+  {
+    return data == NULL && children.size () == 1;
+  }
+
 public:
 
   /**
@@ -103,6 +124,13 @@ public:
    */
   void Set (valtype::const_iterator a, const valtype::const_iterator& b,
             const CNameData& d, bool expanded = false);
+
+  /**
+   * See if the trie has a valid form (expanded or not).  Errors (and
+   * returns false) if not.
+   * @return True if it is valid.
+   */
+  bool Check (bool expanded) const;
 
   /* Implement serialisation.  This is *not* used for hashing!  Hashing
      is done by GetHash in an ad-hoc fashion, since it does resolve

@@ -5,6 +5,7 @@
 #include "names/unotrie.h"
 
 #include "hash.h"
+#include "util.h"
 
 #include <algorithm>
 #include <utility>
@@ -135,4 +136,21 @@ CUnoTrie::Set (valtype::const_iterator a, const valtype::const_iterator& b,
       else
         mi->second->Set (a, b, d, expanded);
     }
+}
+
+bool
+CUnoTrie::Check (bool expanded) const
+{
+  if (IsEmptyLeaf ())
+    return error ("%s: trie has empty leaf", __func__);
+
+  if (expanded && !prefix.empty ())
+    return error ("%s: expanded trie has prefix", __func__);
+  if (!expanded && IsPureEdge ())
+    return error ("%s: non-expanded trie has pure edge", __func__);
+
+  BOOST_FOREACH(const PAIRTYPE(unsigned char, CUnoTrie*)& child, children)
+    if (!child.second->Check (expanded))
+      return false;
+  return true;
 }

@@ -537,6 +537,7 @@ name_buildunotrie (const UniValue& params, bool fHelp)
   UniValue res(UniValue::VOBJ);
   res.push_back (Pair ("hash", trie.GetHash ().GetHex ()));
   res.push_back (Pair ("size", size.size ()));
+  res.push_back (Pair ("ok", trie.Check (expanded)));
 
   return res;
 }
