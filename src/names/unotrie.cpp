@@ -42,9 +42,11 @@ CUnoTrie::GetHash () const
   uint256 res;
   {
     CHashWriter hasher(SER_GETHASH, PROTOCOL_VERSION);
-    const bool hasData = (data != NULL);
-    hasher << hasData;
-    if (hasData)
+    uint8_t flags = 0;
+    if (data)
+      flags |= FLAG_HASDATA;
+    hasher << flags;
+    if (data)
       hasher << *data;
     hasher << childHashes;
     res = hasher.GetHash ();

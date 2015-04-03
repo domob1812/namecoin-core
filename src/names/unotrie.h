@@ -31,6 +31,11 @@ class CUnoTrie
 
 private:
 
+  /** Flag indicating that we have data.  */
+  static const uint8_t FLAG_HASDATA = (1 << 0);
+  /** Flag indicating that a prefix is present.  */
+  static const uint8_t FLAG_PREFIX = (1 << 1);
+
   /**
    * Additional bytes to add along the edge from this node to the
    * first character in the parent's map.
@@ -108,7 +113,15 @@ public:
   {
     assert (!(nType & SER_GETHASH));
 
-    s << prefix << static_cast<bool> (data != NULL);
+    uint8_t flags = 0;
+    if (data)
+      flags |= FLAG_HASDATA;
+    if (!prefix.empty ())
+      flags |= FLAG_PREFIX;
+    s << flags;
+
+    if (!prefix.empty ())
+      s << prefix;
     if (data)
       s << *data;
 
@@ -122,12 +135,16 @@ public:
     Unserialize (Stream& s, int nType, int nVersion)
   {
     Clear ();
-    s >> prefix;
 
-    bool fHasData;
-    s >> fHasData;
+    uint8_t flags;
+    s >> flags;
+
+    assert (prefix.empty ());
+    if (flags & FLAG_PREFIX)
+      s >> prefix;
+
     assert (!data);
-    if (fHasData)
+    if (flags & FLAG_HASDATA)
       {
         data = new CNameData ();
         s >> *data;
