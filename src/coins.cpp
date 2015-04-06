@@ -263,6 +263,57 @@ void CCoinsViewCache::DeleteName(const valtype &name) {
     cacheNames.remove(name);
 }
 
+/**
+ * CNameWalker object used for building of the UNO trie.
+ */
+class CBuildUnoWalker : public CNameWalker
+{
+
+private:
+
+    /** Expanded flag for inserts.  */
+    bool expanded;
+
+    /** Insert elements here.  */
+    CUnoTrie& trie;
+
+public:
+
+    /**
+     * Construct the object, given the empty trie to insert into.
+     * @param t The trie to insert into.
+     * @param ex Expanded flag.
+     */
+    inline CBuildUnoWalker(CUnoTrie& t, bool ex)
+      : expanded(ex), trie(t)
+    {}
+
+    /**
+     * Register a new name.
+     * @param name The name.
+     * @param data The name's data.
+     * @return Always true.
+     */
+    bool nextName(const valtype& name, const CNameData& data);
+
+};
+
+bool
+CBuildUnoWalker::nextName(const valtype& name, const CNameData& data)
+{
+    trie.Set(name.begin(), name.end(), data, expanded);
+    return true;
+}
+
+void CCoinsViewCache::BuildUnoTrie(bool expanded)
+{
+    fUnoTrieExpanded = expanded;
+
+    unoTrie.reset(new CUnoTrie());
+    CBuildUnoWalker walker(*unoTrie, fUnoTrieExpanded);
+    WalkNames(valtype(), walker);
+}
+
 bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn, const CNameCache &names) {
     assert(!hasModifier);
     for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end();) {
@@ -306,6 +357,8 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
 
 bool CCoinsViewCache::Flush() {
     bool fOk = base->BatchWrite(cacheCoins, hashBlock, cacheNames);
+    if (HasUnoTrie ())
+        cacheNames.writeUnoTrie (*unoTrie, fUnoTrieExpanded);
     cacheCoins.clear();
     cachedCoinsUsage = 0;
     cacheNames.clear();

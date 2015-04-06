@@ -15,6 +15,7 @@
 
 class CNameScript;
 class CLevelDBBatch;
+class CUnoTrie;
 
 /** Whether or not name history is enabled.  */
 extern bool fNameHistory;
@@ -482,6 +483,9 @@ public:
 
   /* Write all cached changes to a database batch update object.  */
   void writeBatch (CLevelDBBatch& batch) const;
+
+  /* Write all cached changes to a UNO trie.  */
+  void writeUnoTrie (CUnoTrie& trie, bool expanded = false) const;
 
 };
 

@@ -297,6 +297,7 @@ std::string HelpMessage(HelpMessageMode mode)
 #endif
     strUsage += HelpMessageOpt("-txindex", strprintf(_("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"), 0));
     strUsage += HelpMessageOpt("-namehistory", strprintf(_("Keep track of the full name history (default: %u)"), 0));
+    strUsage += HelpMessageOpt("-unotrie", strprintf(_("Keep the UNO trie in memory (default: %u)"), 0));
 
     strUsage += HelpMessageGroup(_("Connection options:"));
     strUsage += HelpMessageOpt("-addnode=<ip>", _("Add a node to connect to and attempt to keep the connection open"));
@@ -1264,6 +1265,17 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         return false;
     }
     LogPrintf(" block index %15dms\n", GetTimeMillis() - nStart);
+
+    if (GetBoolArg("-unotrie", false))
+    {
+        uiInterface.InitMessage(_("Building UNO trie..."));
+        nStart = GetTimeMillis();
+
+        pcoinsTip->Flush();
+        pcoinsTip->BuildUnoTrie();
+
+        LogPrintf(" UNO trie %15dms\n", GetTimeMillis() - nStart);
+    }
 
     boost::filesystem::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
     CAutoFile est_filein(fopen(est_path.string().c_str(), "rb"), SER_DISK, CLIENT_VERSION);

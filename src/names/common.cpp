@@ -4,6 +4,7 @@
 
 #include "names/common.h"
 
+#include "names/unotrie.h"
 #include "script/names.h"
 
 bool fNameHistory = false;
@@ -288,4 +289,17 @@ CNameCache::apply (const CNameCache& cache)
   for (std::map<ExpireEntry, bool>::const_iterator i
         = cache.expireIndex.begin (); i != cache.expireIndex.end (); ++i)
     expireIndex[i->first] = i->second;
+}
+
+/* Write all cached changes to a UNO trie.  */
+void
+CNameCache::writeUnoTrie (CUnoTrie& trie, bool expanded) const
+{
+  for (std::map<valtype, CNameData>::const_iterator i = entries.begin ();
+       i != entries.end (); ++i)
+    trie.Set (i->first.begin (), i->first.end (), i->second, expanded);
+
+  for (std::set<valtype>::const_iterator i = deleted.begin ();
+       i != deleted.end (); ++i)
+    trie.Delete (i->begin (), i->end (), expanded);
 }

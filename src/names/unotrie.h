@@ -126,11 +126,24 @@ public:
             const CNameData& d, bool expanded = false);
 
   /**
+   * Delete the given node.  It should be present.  If not, an error
+   * is printed to the log output.
+   * @param a Start of the prefix.
+   * @param b End of the prefix.
+   * @param expanded Whether or not to keep an "expanded" trie.
+   * @return True if the element was present.
+   */
+  bool Delete (valtype::const_iterator a, const valtype::const_iterator& b,
+               bool expanded = false);
+
+  /**
    * See if the trie has a valid form (expanded or not).  Errors (and
    * returns false) if not.
+   * @param root Whether this is the root node.  It is allowed to be empty.
+   * @param expanded Whether or not the trie should be expanded.
    * @return True if it is valid.
    */
-  bool Check (bool expanded) const;
+  bool Check (bool root, bool expanded) const;
 
   /* Implement serialisation.  This is *not* used for hashing!  Hashing
      is done by GetHash in an ad-hoc fashion, since it does resolve

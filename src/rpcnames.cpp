@@ -458,48 +458,6 @@ name_checkdb (const UniValue& params, bool fHelp)
 
 /* ************************************************************************** */
 
-/**
- * CNameWalker object used for name_buildunotrie.
- */
-class CBuildUnoWalker : public CNameWalker
-{
-
-private:
-
-  /** Expanded flag for inserts.  */
-  bool expanded;
-
-  /** Insert elements here.  */
-  CUnoTrie& trie;
-
-public:
-
-  /**
-   * Construct the object, given the empty trie to insert into.
-   * @param t The trie to insert into.
-   * @param ex Expanded flag.
-   */
-  inline CBuildUnoWalker (CUnoTrie& t, bool ex)
-    : expanded(ex), trie(t)
-  {}
-
-  /**
-   * Register a new name.
-   * @param name The name.
-   * @param data The name's data.
-   * @return Always true.
-   */
-  bool nextName (const valtype& name, const CNameData& data);
-
-};
-
-bool
-CBuildUnoWalker::nextName (const valtype& name, const CNameData& data)
-{
-  trie.Set (name.begin (), name.end (), data, expanded);
-  return true;
-}
-
 UniValue
 name_buildunotrie (const UniValue& params, bool fHelp)
 {
@@ -511,6 +469,7 @@ name_buildunotrie (const UniValue& params, bool fHelp)
         "1. \"expanded\"          (bool, optional) build expanded trie\n"
         "\nResult:\n"
         "{\n"
+        "  \"old\": xxxx,         (string) root hash of coin-stored UNO trie\n"
         "  \"hash\": xxxx,        (string) root hash of the UNO trie\n"
         "  \"bytes\": xxxx,       (integer) serialised size in bytes\n"
         "}\n"
@@ -523,21 +482,25 @@ name_buildunotrie (const UniValue& params, bool fHelp)
   if (params.size () >= 1)
     expanded = params[0].get_bool ();
 
-  CUnoTrie trie;
-  CBuildUnoWalker walker(trie, expanded);
-  {
-    LOCK (cs_main);
-    pcoinsTip->Flush ();
-    pcoinsTip->WalkNames (valtype (), walker);
-  }
+  UniValue res(UniValue::VOBJ);
+
+  LOCK (cs_main);
+  pcoinsTip->Flush ();
+  if (pcoinsTip->HasUnoTrie ())
+    {
+      const CUnoTrie& old = pcoinsTip->GetUnoTrie ();
+      res.push_back (Pair ("old", old.GetHash ().GetHex()));
+    }
+
+  pcoinsTip->BuildUnoTrie (expanded);
+  const CUnoTrie& trie = pcoinsTip->GetUnoTrie ();
 
   CSizeComputer size(SER_NETWORK, PROTOCOL_VERSION);
   size << trie;
 
-  UniValue res(UniValue::VOBJ);
   res.push_back (Pair ("hash", trie.GetHash ().GetHex ()));
   res.push_back (Pair ("size", size.size ()));
-  res.push_back (Pair ("ok", trie.Check (expanded)));
+  res.push_back (Pair ("ok", trie.Check (true, expanded)));
 
   return res;
 }

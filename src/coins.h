@@ -10,11 +10,13 @@
 #include "core_memusage.h"
 #include "memusage.h"
 #include "names/common.h"
+#include "names/unotrie.h"
 #include "serialize.h"
 #include "uint256.h"
 
 #include <assert.h>
 #include <stdint.h>
+#include <memory>
 
 #include <boost/foreach.hpp>
 #include <boost/unordered_map.hpp>
@@ -421,6 +423,11 @@ protected:
     /** Name changes cache.  */
     CNameCache cacheNames;
 
+    /** UNO trie to update (if any).  */
+    std::auto_ptr<CUnoTrie> unoTrie;
+    /** Whether or not the trie is expanded.  */
+    bool fUnoTrieExpanded;
+
 public:
     CCoinsViewCache(CCoinsView *baseIn);
     ~CCoinsViewCache();
@@ -439,6 +446,26 @@ public:
     /* Changes to the name database.  */
     void SetName(const valtype &name, const CNameData &data, bool undo);
     void DeleteName(const valtype &name);
+
+    /* Access the UNO trie (if any).  */
+    inline bool
+    HasUnoTrie() const
+    {
+        return unoTrie.get();
+    }
+    inline const CUnoTrie&
+    GetUnoTrie() const
+    {
+        /* Users should flush before accessing the trie.  */
+        assert(cacheNames.empty());
+        return *unoTrie;
+    }
+    inline bool
+    CheckUnoTrie() const
+    {
+        return GetUnoTrie().Check(true, fUnoTrieExpanded);
+    }
+    void BuildUnoTrie(bool expanded = false);
 
     /**
      * Return a pointer to CCoins in the cache, or NULL if not found. This is
