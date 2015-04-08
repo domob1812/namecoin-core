@@ -271,11 +271,19 @@ bool UnexpireNames (unsigned nHeight, const CBlockUndo& undo,
                     CCoinsViewCache& view, std::set<valtype>& names);
 
 /**
- * Check the name database consistency.  This calls CCoinsView::ValidateNameDB,
- * but only if applicable depending on the -checknamedb setting.  If it fails,
- * this throws an assertion failure.
+ * Check the name database consistency.  This calls CheckNameDB,
+ * but only if applicable depending on the -checknamedb setting.
+ * If it fails, this throws an assertion failure.
  * @param disconnect Whether we are disconnecting blocks.
  */
-void CheckNameDB (bool disconnect);
+void MaybeCheckNameDB (bool disconnect);
+
+/**
+ * Check the name database consistency.  This calls CCoinsView::ValidateNameDB
+ * and verifies the UNO trie.  The check is always done by this routine,
+ * no matter what -checknamedb is.
+ * @return True if the check is successful.
+ */
+bool CheckNameDB ();
 
 #endif // H_BITCOIN_NAMES_MAIN

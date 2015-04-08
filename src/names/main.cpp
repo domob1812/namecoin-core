@@ -681,7 +681,7 @@ UnexpireNames (unsigned nHeight, const CBlockUndo& undo, CCoinsViewCache& view,
 }
 
 void
-CheckNameDB (bool disconnect)
+MaybeCheckNameDB (bool disconnect)
 {
   const int option = GetArg ("-checknamedb", Params ().DefaultCheckNameDB ());
 
@@ -695,23 +695,27 @@ CheckNameDB (bool disconnect)
         return;
     }
 
-  pcoinsTip->Flush ();
-  const bool ok = pcoinsTip->ValidateNameDB ();
+  if (CheckNameDB ())
+    return;
 
   /* The DB is inconsistent (mismatch between UTXO set and names DB) between
      (roughly) blocks 139,000 and 180,000.  This is caused by libcoin's
      "name stealing" bug.  For instance, d/postmortem is removed from
      the UTXO set shortly after registration (when it is used to steal
      names), but it remains in the name DB until it expires.  */
-  if (!ok)
-    {
-      const unsigned nHeight = chainActive.Height ();
-      LogPrintf ("ERROR: %s : name database is inconsistent\n", __func__);
-      if (nHeight >= 139000 && nHeight <= 180000)
-        LogPrintf ("This is expected due to 'name stealing'.\n");
-      else
-        assert (false);
-    }
+  const unsigned nHeight = chainActive.Height ();
+  if (nHeight >= 139000 && nHeight <= 180000)
+    LogPrintf ("DB inconsistency expected due to 'name stealing'.\n");
+  else
+    assert (false);
+}
+
+bool
+CheckNameDB ()
+{
+  pcoinsTip->Flush ();
+  if (!pcoinsTip->ValidateNameDB ())
+    return error ("%s : name database is inconsistent", __func__);
 
   /* Build a fresh UNO trie and compute its root hash.  This value is then
      used to validate the in-memory trie.  Use an expanded trie since that
@@ -720,24 +724,22 @@ CheckNameDB (bool disconnect)
   {
     CCoinsViewCache cache(pcoinsTip);
     cache.BuildUnoTrie (true);
-    assert (cache.CheckUnoTrie ());
+    if (!cache.CheckUnoTrie ())
+      return error ("%s: fresh UNO trie is not valid", __func__);
     unoHash = cache.GetUnoTrie ().GetHash ();
   }
-
+  LogPrintf ("Freshly-built UNO trie root hash:\n  %s\n",
+             unoHash.GetHex ().c_str ());
 
   /* Check UNO trie.  */
   if (pcoinsTip->HasUnoTrie ())
     {
       if (!pcoinsTip->CheckUnoTrie ())
-        {
-          error ("%s: UNO trie is not valid\n", __func__);
-          assert (false);
-        }
+        return error ("%s: UNO trie is not valid", __func__);
 
       if (pcoinsTip->GetUnoTrie ().GetHash () != unoHash)
-        {
-          error ("%s: UNO in-memory trie has wrong root hash", __func__);
-          assert (false);
-        }
+        return error ("%s: UNO in-memory trie has wrong root hash", __func__);
     }
+
+  return true;
 }

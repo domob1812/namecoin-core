@@ -1274,6 +1274,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         pcoinsTip->Flush();
         pcoinsTip->BuildUnoTrie();
 
+        /* Compute the root hash once so that hashes of subtrees
+           are computed and cached.  */
+        pcoinsTip->GetUnoTrie ().GetHash ();
+
         LogPrintf(" UNO trie %15dms\n", GetTimeMillis() - nStart);
     }
 

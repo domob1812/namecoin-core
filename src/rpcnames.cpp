@@ -436,24 +436,23 @@ name_filter (const UniValue& params, bool fHelp)
 /* ************************************************************************** */
 
 UniValue
-name_checkdb (const UniValue& params, bool fHelp)
+checknamedb (const UniValue& params, bool fHelp)
 {
   if (fHelp || params.size () != 0)
     throw std::runtime_error (
-        "name_checkdb\n"
+        "checknamedb\n"
         "\nValidate the name DB's consistency.\n"
         "\nRoughly between blocks 139,000 and 180,000, this call is expected\n"
         "to fail due to the historic 'name stealing' bug.\n"
         "\nResult:\n"
         "xxxxx                        (boolean) whether the state is valid\n"
         "\nExamples:\n"
-        + HelpExampleCli ("name_checkdb", "")
-        + HelpExampleRpc ("name_checkdb", "")
+        + HelpExampleCli ("checknamedb", "")
+        + HelpExampleRpc ("checknamedb", "")
       );
 
   LOCK (cs_main);
-  pcoinsTip->Flush ();
-  return pcoinsTip->ValidateNameDB ();
+  return CheckNameDB ();
 }
 
 /* ************************************************************************** */
