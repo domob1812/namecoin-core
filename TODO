@@ -1,3 +1,11 @@
+* enable -unotrie for some regtest nodes
+
+* implement hash caching and computation using the LevelDB
+
+* add unittests
+
+* build full trie to check hash in "name db check"
+
 * handle seed nodes / DNS seeds
 
 * upgrade to new version at fixed height:

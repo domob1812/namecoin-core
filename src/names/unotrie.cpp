@@ -28,11 +28,17 @@ CUnoTrie::Clear ()
   BOOST_FOREACH(PAIRTYPE(unsigned char, CUnoTrie*) child, children)
     delete child.second;
   children.clear ();
+
+  hash.SetNull ();
 }
 
 uint256
 CUnoTrie::GetHash () const
 {
+  if (!hash.IsNull ())
+    return hash;
+
+  /* Find child hashes.  */
   std::map<unsigned char, uint256> childHashes;
   BOOST_FOREACH(PAIRTYPE(unsigned char, const CUnoTrie*) child, children)
     childHashes.insert (std::make_pair (child.first, child.second->GetHash ()));
@@ -40,7 +46,6 @@ CUnoTrie::GetHash () const
   /* Compute base hash.  This is the hash without the prefix.  I. e.,
      the hash of the "lowest" trie node, which actually holds all the
      data and the children present in the object.  */
-  uint256 res;
   {
     CHashWriter hasher(SER_GETHASH, PROTOCOL_VERSION);
     uint8_t flags = 0;
@@ -50,7 +55,7 @@ CUnoTrie::GetHash () const
     if (data)
       hasher << *data;
     hasher << childHashes;
-    res = hasher.GetHash ();
+    hash = hasher.GetHash ();
   }
 
   /* Follow up the prefix, if there is any.  */
@@ -61,19 +66,21 @@ CUnoTrie::GetHash () const
       hasher << false;
 
       childHashes.clear ();
-      childHashes.insert (std::make_pair (*i, res));
+      childHashes.insert (std::make_pair (*i, hash));
       hasher << childHashes;
 
-      res = hasher.GetHash ();
+      hash = hasher.GetHash ();
     }
 
-  return res;
+  return hash;
 }
 
 void
 CUnoTrie::Set (valtype::const_iterator a, const valtype::const_iterator& b,
                const CNameData& d, bool expanded)
 {
+  hash.SetNull ();
+
   /* Follow the prefix as far as possible.  */
   valtype::const_iterator i = prefix.begin ();
   while (i != prefix.end () && a != b && *i == *a)
@@ -142,6 +149,8 @@ bool
 CUnoTrie::Delete (valtype::const_iterator a, const valtype::const_iterator& b,
                   bool expanded)
 {
+  hash.SetNull ();
+
   /* Follow the prefix as far as possible.  */
   valtype::const_iterator i = prefix.begin ();
   while (i != prefix.end () && a != b && *i == *a)

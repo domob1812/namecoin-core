@@ -48,6 +48,9 @@ private:
   /** Subtrie's indexed by their "next character".  */
   std::map<unsigned char, CUnoTrie*> children;
 
+  /** Cache the computed subtree hash (if known).  */
+  mutable uint256 hash;
+
   /**
    * Construct with given prefix range and data.  This is used
    * when inserting nodes into the trie.
@@ -57,7 +60,7 @@ private:
    */
   inline CUnoTrie (const valtype::const_iterator& a,
                    const valtype::const_iterator& b, CNameData* d = NULL)
-    : prefix(a, b), data(d), children()
+    : prefix(a, b), data(d), children(), hash()
   {}
 
   /**
@@ -93,7 +96,7 @@ public:
    * Construct it with empty data and no children.
    */
   inline CUnoTrie ()
-    : prefix(), data(NULL), children()
+    : prefix(), data(NULL), children(), hash()
   {}
 
   /**
