@@ -459,48 +459,41 @@ name_checkdb (const UniValue& params, bool fHelp)
 /* ************************************************************************** */
 
 UniValue
-name_buildunotrie (const UniValue& params, bool fHelp)
+getunotrieinfo (const UniValue& params, bool fHelp)
 {
-  if (fHelp || params.size () > 1)
+  if (fHelp || params.size () > 0)
     throw std::runtime_error (
-        "name_unotrie (\"expanded\")\n"
-        "\nBuild the UNO trie and report data about it.\n"
-        "\nArguments:\n"
-        "1. \"expanded\"          (bool, optional) build expanded trie\n"
+        "getunotrieinfo\n"
+        "\nReport statistics about the UNO trie.  If -unotrie is used,\n"
+        "the in-memory trie will be analysed and also the size can be\n"
+        "computed.  Otherwise, just the hash is returned.\n"
         "\nResult:\n"
         "{\n"
-        "  \"old\": xxxx,         (string) root hash of coin-stored UNO trie\n"
         "  \"hash\": xxxx,        (string) root hash of the UNO trie\n"
-        "  \"bytes\": xxxx,       (integer) serialised size in bytes\n"
+        "  \"size\": xxxx,        (integer) serialised size in bytes\n"
         "}\n"
         "\nExamples:\n"
-        + HelpExampleCli ("name_buildunotrie", "")
-        + HelpExampleRpc ("name_buildunotrie", "")
+        + HelpExampleCli ("getunotrieinfo", "")
+        + HelpExampleRpc ("getunotrieinfo", "")
       );
-
-  bool expanded = false;
-  if (params.size () >= 1)
-    expanded = params[0].get_bool ();
 
   UniValue res(UniValue::VOBJ);
 
   LOCK (cs_main);
   pcoinsTip->Flush ();
+
   if (pcoinsTip->HasUnoTrie ())
     {
-      const CUnoTrie& old = pcoinsTip->GetUnoTrie ();
-      res.push_back (Pair ("old", old.GetHash ().GetHex()));
+      const CUnoTrie& trie = pcoinsTip->GetUnoTrie ();
+      res.push_back (Pair ("hash", trie.GetHash ().GetHex()));
+
+      CSizeComputer size(SER_NETWORK, PROTOCOL_VERSION);
+      size << trie;
+      res.push_back (Pair ("size", size.size ()));
     }
-
-  pcoinsTip->BuildUnoTrie (expanded);
-  const CUnoTrie& trie = pcoinsTip->GetUnoTrie ();
-
-  CSizeComputer size(SER_NETWORK, PROTOCOL_VERSION);
-  size << trie;
-
-  res.push_back (Pair ("hash", trie.GetHash ().GetHex ()));
-  res.push_back (Pair ("size", size.size ()));
-  res.push_back (Pair ("ok", trie.Check (true, expanded)));
+  else
+    /* TODO: Compute hash without in-memory trie.  */
+    res.push_back (Pair ("error", "not yet implemented"));
 
   return res;
 }
