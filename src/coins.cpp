@@ -243,6 +243,8 @@ void CCoinsViewCache::SetName(const valtype &name, const CNameData& data, bool u
         assert (!undo);
 
     cacheNames.set(name, data);
+    if (HasUnoTrie ())
+        unoTrie->Set (name.begin (), name.end (), data, fUnoTrieExpanded);
     cacheNames.addExpireIndex(name, data.getHeight());
 }
 
@@ -261,6 +263,8 @@ void CCoinsViewCache::DeleteName(const valtype &name) {
     }
 
     cacheNames.remove(name);
+    if (HasUnoTrie ())
+        unoTrie->Delete (name.begin (), name.end (), fUnoTrieExpanded);
 }
 
 /**
@@ -351,14 +355,14 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
         mapCoins.erase(itOld);
     }
     hashBlock = hashBlockIn;
-    cacheNames.apply(names);
+    names.applyTo(cacheNames);
+    if (HasUnoTrie())
+        names.applyTo(*unoTrie);
     return true;
 }
 
 bool CCoinsViewCache::Flush() {
     bool fOk = base->BatchWrite(cacheCoins, hashBlock, cacheNames);
-    if (HasUnoTrie ())
-        cacheNames.writeUnoTrie (*unoTrie, fUnoTrieExpanded);
     cacheCoins.clear();
     cachedCoinsUsage = 0;
     cacheNames.clear();

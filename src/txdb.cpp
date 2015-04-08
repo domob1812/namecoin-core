@@ -218,7 +218,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, con
     if (!hashBlock.IsNull())
         BatchWriteHashBestChain(batch, hashBlock);
 
-    names.writeBatch(batch);
+    names.applyTo(batch);
 
     LogPrint("coindb", "Committing %u changed transactions (out of %u) to coin database...\n", (unsigned int)changed, (unsigned int)count);
     return db.WriteBatch(batch);
@@ -469,7 +469,7 @@ bool CCoinsViewDB::ValidateNameDB() const
 }
 
 void
-CNameCache::writeBatch (CLevelDBBatch& batch) const
+CNameCache::applyTo (CLevelDBBatch& batch) const
 {
   for (EntryMap::const_iterator i = entries.begin ();
        i != entries.end (); ++i)

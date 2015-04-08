@@ -696,7 +696,7 @@ CheckNameDB (bool disconnect)
     }
 
   pcoinsTip->Flush ();
-  bool ok = pcoinsTip->ValidateNameDB ();
+  const bool ok = pcoinsTip->ValidateNameDB ();
 
   /* The DB is inconsistent (mismatch between UTXO set and names DB) between
      (roughly) blocks 139,000 and 180,000.  This is caused by libcoin's
@@ -713,13 +713,30 @@ CheckNameDB (bool disconnect)
         assert (false);
     }
 
+  /* Build a fresh UNO trie and compute its root hash.  This value is then
+     used to validate the in-memory trie.  Use an expanded trie since that
+     is even more "secure" against implementation errors.  */
+  uint256 unoHash;
+  {
+    CCoinsViewCache cache(pcoinsTip);
+    cache.BuildUnoTrie (true);
+    assert (cache.CheckUnoTrie ());
+    unoHash = cache.GetUnoTrie ().GetHash ();
+  }
+
+
   /* Check UNO trie.  */
   if (pcoinsTip->HasUnoTrie ())
     {
-      ok = pcoinsTip->CheckUnoTrie ();
-      if (!ok)
+      if (!pcoinsTip->CheckUnoTrie ())
         {
-          LogPrintf ("ERROR: %s: UNO trie is not valid\n", __func__);
+          error ("%s: UNO trie is not valid\n", __func__);
+          assert (false);
+        }
+
+      if (pcoinsTip->GetUnoTrie ().GetHash () != unoHash)
+        {
+          error ("%s: UNO in-memory trie has wrong root hash", __func__);
           assert (false);
         }
     }

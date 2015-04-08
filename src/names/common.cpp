@@ -6,6 +6,8 @@
 
 #include "names/unotrie.h"
 #include "script/names.h"
+#include "util.h"
+#include "utiltime.h"
 
 bool fNameHistory = false;
 
@@ -272,29 +274,33 @@ CNameCache::removeExpireIndex (const valtype& name, unsigned height)
 }
 
 void
-CNameCache::apply (const CNameCache& cache)
+CNameCache::applyTo (CNameCache& cache) const
 {
-  for (EntryMap::const_iterator i = cache.entries.begin ();
-       i != cache.entries.end (); ++i)
-    set (i->first, i->second);
+  for (EntryMap::const_iterator i = entries.begin ();
+       i != entries.end (); ++i)
+    cache.set (i->first, i->second);
 
-  for (std::set<valtype>::const_iterator i = cache.deleted.begin ();
-       i != cache.deleted.end (); ++i)
-    remove (*i);
+  for (std::set<valtype>::const_iterator i = deleted.begin ();
+       i != deleted.end (); ++i)
+    cache.remove (*i);
 
-  for (std::map<valtype, CNameHistory>::const_iterator i
-        = cache.history.begin (); i != cache.history.end (); ++i)
-    setHistory (i->first, i->second);
+  for (std::map<valtype, CNameHistory>::const_iterator i = history.begin ();
+       i != history.end (); ++i)
+    cache.setHistory (i->first, i->second);
 
-  for (std::map<ExpireEntry, bool>::const_iterator i
-        = cache.expireIndex.begin (); i != cache.expireIndex.end (); ++i)
-    expireIndex[i->first] = i->second;
+  for (std::map<ExpireEntry, bool>::const_iterator i = expireIndex.begin ();
+       i != expireIndex.end (); ++i)
+    cache.expireIndex[i->first] = i->second;
 }
 
-/* Write all cached changes to a UNO trie.  */
 void
-CNameCache::writeUnoTrie (CUnoTrie& trie, bool expanded) const
+CNameCache::applyTo (CUnoTrie& trie, bool expanded) const
 {
+#ifdef BENCHMARK_UNO_TRIE
+  static int64_t nTotalMicros = 0;
+  const int64_t nStart = GetTimeMicros ();
+#endif // BENCHMARK_UNO_TRIE
+
   for (std::map<valtype, CNameData>::const_iterator i = entries.begin ();
        i != entries.end (); ++i)
     trie.Set (i->first.begin (), i->first.end (), i->second, expanded);
@@ -302,4 +308,18 @@ CNameCache::writeUnoTrie (CUnoTrie& trie, bool expanded) const
   for (std::set<valtype>::const_iterator i = deleted.begin ();
        i != deleted.end (); ++i)
     trie.Delete (i->begin (), i->end (), expanded);
+
+#ifdef BENCHMARK_UNO_TRIE
+  /* Compute the root hash, since that is a step that a miner
+     or full node has to do for every block.  This routine is called
+     whenever pcoinsTip is updated from the temporary cache, which corresponds
+     to the addition of a new block in the chain.  */
+  trie.GetHash ();
+
+  const int64_t nEnd = GetTimeMicros ();
+  assert (nEnd >= nStart);
+  nTotalMicros += nEnd - nStart;
+  LogPrint ("bench", "UNO in-memory update: %.2fms, total %.3fs\n",
+            (nEnd - nStart) * 1e-3, nTotalMicros * 1e-6);
+#endif // BENCHMARK_UNO_TRIE
 }

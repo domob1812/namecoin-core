@@ -478,14 +478,10 @@ public:
   /* Remove an expire-index entry.  */
   void removeExpireIndex (const valtype& name, unsigned height);
 
-  /* Apply all the changes in the passed-in record on top of this one.  */
-  void apply (const CNameCache& cache);
-
-  /* Write all cached changes to a database batch update object.  */
-  void writeBatch (CLevelDBBatch& batch) const;
-
-  /* Write all cached changes to a UNO trie.  */
-  void writeUnoTrie (CUnoTrie& trie, bool expanded = false) const;
+  /* Apply all the changes in the cache to the argument.  */
+  void applyTo (CNameCache& cache) const;
+  void applyTo (CUnoTrie& trie, bool expanded = false) const;
+  void applyTo (CLevelDBBatch& batch) const;
 
 };
 
