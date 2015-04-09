@@ -164,7 +164,8 @@ CUnoTrie::Delete (valtype::const_iterator a, const valtype::const_iterator& b,
   if (i != prefix.end ())
     return error ("%s: element to delete not in the trie", __func__);
 
-  /* Handle the case that we have reached the final node.  */
+  /* Remove either the data directly if we have reached the final node,
+     or recurse on the subtree.  */
   if (a == b)
     {
       if (!data)
@@ -172,58 +173,56 @@ CUnoTrie::Delete (valtype::const_iterator a, const valtype::const_iterator& b,
 
       delete data;
       data = NULL;
+    }
+  else
+    {
+      const unsigned char nextByte = *a;
+      std::map<unsigned char, CUnoTrie*>::iterator mi;
+      mi = children.find (nextByte);
 
-      /* If this node remains as a "pure edge" and we want a non-expanded
-         trie, strip it out.  */
-      if (!expanded && IsPureEdge ())
+      ++a;
+      if (mi == children.end ())
+        return error ("%s: element to delete not in the trie", __func__);
+
+      if (!mi->second->Delete (a, b, expanded))
+        return false;
+
+      /* We have to remove childs that have become "empty leaf" nodes.  */
+      if (mi->second->IsEmptyLeaf ())
         {
-          const unsigned char nextByte = children.begin ()->first;
-          std::auto_ptr<CUnoTrie> child(children.begin ()->second);
-          assert (children.size () == 1);
-          children.clear ();
-
-          assert (!data);
-          std::swap (data, child->data);
-
-          prefix.push_back (nextByte);
-          prefix.insert (prefix.end (), child->prefix.begin (),
-                         child->prefix.end ());
-
-          children.swap (child->children);
-          assert (child->children.empty ());
-          // child is deallocated on going out of scope.
-
-          assert (!IsPureEdge ());
+          delete mi->second;
+          children.erase (mi);
         }
-
-      return true;
     }
 
-  /* Recurse on the subtree.  Note that we have to remove childs
-     that become "empty leaf" nodes by the process.  */
-
-  const unsigned char nextByte = *a;
-  std::map<unsigned char, CUnoTrie*>::iterator mi;
-  mi = children.find (nextByte);
-
-  ++a;
-  if (mi == children.end ())
-    return error ("%s: element to delete not in the trie", __func__);
-
-  if (!mi->second->Delete (a, b, expanded))
-    return false;
-
-  if (mi->second->IsEmptyLeaf ())
+  /* If this node remains as a "pure edge" and we want a non-expanded
+     trie, strip it out.  */
+  if (!expanded && IsPureEdge ())
     {
-      delete mi->second;
-      children.erase (mi);
+      const unsigned char nextByte = children.begin ()->first;
+      std::auto_ptr<CUnoTrie> child(children.begin ()->second);
+      assert (children.size () == 1);
+      children.clear ();
+
+      assert (!data);
+      std::swap (data, child->data);
+
+      prefix.push_back (nextByte);
+      prefix.insert (prefix.end (), child->prefix.begin (),
+                     child->prefix.end ());
+
+      children.swap (child->children);
+      assert (child->children.empty ());
+      // child is deallocated on going out of scope.
+
+      assert (!IsPureEdge ());
     }
 
   return true;
 }
 
 bool
-CUnoTrie::Check (bool root, bool expanded) const
+CUnoTrie::InternalCheck (bool root, bool expanded) const
 {
   /* The root node can be both an empty leaf and a pure edge.  It never gets
      a prefix.  If childs are added, they may be added as "pure edge" childs
@@ -240,7 +239,7 @@ CUnoTrie::Check (bool root, bool expanded) const
     }
 
   BOOST_FOREACH(const PAIRTYPE(unsigned char, CUnoTrie*)& child, children)
-    if (!child.second->Check (false, expanded))
+    if (!child.second->InternalCheck (false, expanded))
       return false;
 
   return true;

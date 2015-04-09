@@ -1,10 +1,7 @@
-* enable -unotrie for some regtest nodes
-
 * implement hash caching and computation using the LevelDB
 
-* add unittests
-
-* build full trie to check hash in "name db check"
+* add regtests that compare -unotrie and -unotrie=0 nodes with respect
+  to their getunotrieinfo hashes
 
 * handle seed nodes / DNS seeds
 

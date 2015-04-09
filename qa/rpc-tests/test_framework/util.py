@@ -83,7 +83,7 @@ def base_node_args(i):
     # network parts (0/1 vs 2/3).
 
     if i == 1 or i == 2:
-        return ["-namehistory"]
+        return ["-namehistory", "-unotrie"]
 
     return []
 

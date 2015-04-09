@@ -90,6 +90,14 @@ private:
     return data == NULL && children.size () == 1;
   }
 
+  /**
+   * Internal check routine, called recursively by Check.
+   * @param root Whether or not this is the root node.
+   * @param expanded Whether or not the trie should be expanded.
+   * @return True if it is valid.
+   */
+  bool InternalCheck (bool root, bool expanded) const;
+
 public:
 
   /**
@@ -142,11 +150,14 @@ public:
   /**
    * See if the trie has a valid form (expanded or not).  Errors (and
    * returns false) if not.
-   * @param root Whether this is the root node.  It is allowed to be empty.
    * @param expanded Whether or not the trie should be expanded.
    * @return True if it is valid.
    */
-  bool Check (bool root, bool expanded) const;
+  inline bool
+  Check (bool expanded) const
+  {
+    return InternalCheck (true, expanded);
+  }
 
   /* Implement serialisation.  This is *not* used for hashing!  Hashing
      is done by GetHash in an ad-hoc fashion, since it does resolve

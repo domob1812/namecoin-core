@@ -456,14 +456,17 @@ public:
     inline const CUnoTrie&
     GetUnoTrie() const
     {
-        /* Users should flush before accessing the trie.  */
-        assert(cacheNames.empty());
         return *unoTrie;
     }
     inline bool
     CheckUnoTrie() const
     {
-        return GetUnoTrie().Check(true, fUnoTrieExpanded);
+        return GetUnoTrie().Check(fUnoTrieExpanded);
+    }
+    inline void
+    ClearUnoTrie()
+    {
+        unoTrie.reset(NULL);
     }
     void BuildUnoTrie(bool expanded = false);
 
