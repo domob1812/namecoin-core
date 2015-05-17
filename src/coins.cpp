@@ -240,11 +240,11 @@ void CCoinsViewCache::SetName(const valtype &name, const CNameData& data, bool u
             cacheNames.setHistory(name, history);
         }
     } else
-        assert (!undo);
+        assert(!undo);
 
     cacheNames.set(name, data);
-    if (HasUnoTrie ())
-        unoTrie->Set (name.begin (), name.end (), data, fUnoTrieExpanded);
+    if (HasUnoTrie())
+        unoTrie->Set(name.begin(), name.end(), data, fUnoTrieExpanded);
     cacheNames.addExpireIndex(name, data.getHeight());
 }
 
@@ -263,59 +263,20 @@ void CCoinsViewCache::DeleteName(const valtype &name) {
     }
 
     cacheNames.remove(name);
-    if (HasUnoTrie ())
-        unoTrie->Delete (name.begin (), name.end (), fUnoTrieExpanded);
-}
-
-/**
- * CNameWalker object used for building of the UNO trie.
- */
-class CBuildUnoWalker : public CNameWalker
-{
-
-private:
-
-    /** Expanded flag for inserts.  */
-    bool expanded;
-
-    /** Insert elements here.  */
-    CUnoTrie& trie;
-
-public:
-
-    /**
-     * Construct the object, given the empty trie to insert into.
-     * @param t The trie to insert into.
-     * @param ex Expanded flag.
-     */
-    inline CBuildUnoWalker(CUnoTrie& t, bool ex)
-      : expanded(ex), trie(t)
-    {}
-
-    /**
-     * Register a new name.
-     * @param name The name.
-     * @param data The name's data.
-     * @return Always true.
-     */
-    bool nextName(const valtype& name, const CNameData& data);
-
-};
-
-bool
-CBuildUnoWalker::nextName(const valtype& name, const CNameData& data)
-{
-    trie.Set(name.begin(), name.end(), data, expanded);
-    return true;
+    if (HasUnoTrie())
+        unoTrie->Delete(name.begin(), name.end(), fUnoTrieExpanded);
 }
 
 void CCoinsViewCache::BuildUnoTrie(bool expanded)
 {
     fUnoTrieExpanded = expanded;
-
     unoTrie.reset(new CUnoTrie());
-    CBuildUnoWalker walker(*unoTrie, fUnoTrieExpanded);
-    WalkNames(valtype(), walker);
+
+    valtype name;
+    CNameData data;
+    std::auto_ptr<CNameIterator> iter(IterateNames());
+    while (iter->next (name, data))
+      unoTrie->Set(name.begin(), name.end(), data, expanded);
 }
 
 bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn, const CNameCache &names) {

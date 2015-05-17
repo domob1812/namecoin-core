@@ -477,9 +477,7 @@ getunotrieinfo (const UniValue& params, bool fHelp)
       );
 
   UniValue res(UniValue::VOBJ);
-
   LOCK (cs_main);
-  pcoinsTip->Flush ();
 
   if (pcoinsTip->HasUnoTrie ())
     {
