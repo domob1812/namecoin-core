@@ -143,9 +143,7 @@ CCacheNameIterator::next (valtype& name, CNameData& data)
       else
         {
           assert (baseName != cacheIter->first);
-
-          CNameCache::NameComparator cmp;
-          useBase = cmp (baseName, cacheIter->first);
+          useBase = (baseName < cacheIter->first);
         }
     }
 

@@ -33,6 +33,71 @@ static const char DB_FLAG = 'F';
 static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
 
+/**
+ * Special utility class to wrap up a valtype representing the
+ * key in a DB_NAME entry.  It serialises without the vector length
+ * prepended, so that sorting is done lexicographically and matches
+ * the order we want for name iteration.
+ */
+class CNameKey
+{
+
+private:
+
+    /** The wrapped valtype vector.  */
+    valtype base;
+
+public:
+
+    /**
+     * Construct empty.
+     */
+    inline CNameKey()
+      : base()
+    {}
+
+    /**
+     * Construct with a given value.
+     * @param b The base value to wrap up.
+     */
+    explicit inline CNameKey(const valtype& b)
+      : base(b)
+    {}
+
+    /**
+     * Access the base value.
+     * @return The wrapped up value.
+     */
+    inline const valtype&
+    getValue() const
+    {
+        return base;
+    }
+
+    /* Implement serialisation.  */
+
+    inline size_t
+    GetSerializeSize (int nType, int nVersion) const
+    {
+        return base.size();
+    }
+
+    template<typename Stream>
+      inline void
+      Serialize(Stream& s, int nType, int nVersion) const
+    {
+        s.write(reinterpret_cast<const char*>(&base[0]), base.size());
+    }
+
+    template<typename Stream>
+      inline void
+      Unserialize(Stream& s, int nType, int nVersion)
+    {
+        base.resize(s.size());
+        s.read(reinterpret_cast<char*>(&base[0]), base.size());
+    }
+
+};
 
 void static BatchWriteCoins(CLevelDBBatch &batch, const uint256 &hash, const CCoins &coins) {
     if (coins.IsPruned())
@@ -64,7 +129,8 @@ uint256 CCoinsViewDB::GetBestBlock() const {
 }
 
 bool CCoinsViewDB::GetName(const valtype &name, CNameData& data) const {
-    return db.Read(std::make_pair(DB_NAME, name), data);
+    const CNameKey key(name);
+    return db.Read(std::make_pair(DB_NAME, key), data);
 }
 
 bool CCoinsViewDB::GetNameHistory(const valtype &name, CNameHistory& data) const {
@@ -98,14 +164,14 @@ bool CCoinsViewDB::GetNamesForHeight(unsigned nHeight, std::set<valtype>& names)
             ssKey >> chType;
 
             if (chType != DB_NAME_EXPIRY)
-              break;
+                break;
 
             CNameCache::ExpireEntry entry;
             ssKey >> entry;
 
             assert (entry.nHeight >= nHeight);
             if (entry.nHeight > nHeight)
-              break;
+                break;
 
             const valtype& name = entry.name;
             if (names.count(name) > 0)
@@ -157,7 +223,8 @@ CDbNameIterator::CDbNameIterator(const CLevelDBWrapper& db)
 }
 
 void CDbNameIterator::seek(const valtype& start) {
-    const std::pair<char, valtype> seekKey(DB_NAME, start);
+    const CNameKey key(start);
+    const std::pair<char, CNameKey> seekKey(DB_NAME, key);
     CDataStream seekKeyStream(SER_DISK, CLIENT_VERSION);
     seekKeyStream.reserve(seekKeyStream.GetSerializeSize(seekKey));
     seekKeyStream << seekKey;
@@ -182,11 +249,13 @@ bool CDbNameIterator::next(valtype& name, CNameData& data) {
         if (chType != DB_NAME)
             return false;
 
+        CNameKey key;
+        ssKey >> key;
+        name = key.getValue();
+
         const leveldb::Slice& slValue = iter->value();
         CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(),
                             SER_DISK, CLIENT_VERSION);
-
-        ssKey >> name;
         ssValue >> data;
     } catch (const std::exception& exc)
     {
@@ -379,8 +448,10 @@ bool CCoinsViewDB::ValidateNameDB() const
 
             case DB_NAME:
             {
-                valtype name;
-                ssKey >> name;
+                CNameKey key;
+                ssKey >> key;
+                const valtype& name = key.getValue();
+
                 CNameData data;
                 ssValue >> data;
 
@@ -471,28 +542,38 @@ bool CCoinsViewDB::ValidateNameDB() const
 void
 CNameCache::applyTo (CLevelDBBatch& batch) const
 {
-  for (EntryMap::const_iterator i = entries.begin ();
-       i != entries.end (); ++i)
-    batch.Write (std::make_pair (DB_NAME, i->first), i->second);
+    for (EntryMap::const_iterator i = entries.begin ();
+         i != entries.end (); ++i)
+    {
+        const CNameKey key(i->first);
+        batch.Write (std::make_pair (DB_NAME, key), i->second);
+    }
 
-  for (std::set<valtype>::const_iterator i = deleted.begin ();
-       i != deleted.end (); ++i)
-    batch.Erase (std::make_pair (DB_NAME, *i));
+    for (std::set<valtype>::const_iterator i = deleted.begin ();
+         i != deleted.end (); ++i)
+    {
+        const CNameKey key(*i);
+        batch.Erase (std::make_pair (DB_NAME, key));
+    }
 
-  assert (fNameHistory || history.empty ());
-  for (std::map<valtype, CNameHistory>::const_iterator i = history.begin ();
-       i != history.end (); ++i)
-    if (i->second.empty ())
-      batch.Erase (std::make_pair (DB_NAME_HISTORY, i->first));
-    else
-      batch.Write (std::make_pair (DB_NAME_HISTORY, i->first), i->second);
+    assert (fNameHistory || history.empty ());
+    for (std::map<valtype, CNameHistory>::const_iterator i = history.begin ();
+         i != history.end (); ++i)
+    {
+        if (i->second.empty ())
+            batch.Erase (std::make_pair (DB_NAME_HISTORY, i->first));
+        else
+            batch.Write (std::make_pair (DB_NAME_HISTORY, i->first), i->second);
+    }
 
-  for (std::map<ExpireEntry, bool>::const_iterator i = expireIndex.begin ();
-       i != expireIndex.end (); ++i)
-    if (i->second)
-      batch.Write (std::make_pair (DB_NAME_EXPIRY, i->first));
-    else
-      batch.Erase (std::make_pair (DB_NAME_EXPIRY, i->first));
+    for (std::map<ExpireEntry, bool>::const_iterator i = expireIndex.begin ();
+         i != expireIndex.end (); ++i)
+    {
+        if (i->second)
+            batch.Write (std::make_pair (DB_NAME_EXPIRY, i->first));
+        else
+            batch.Erase (std::make_pair (DB_NAME_EXPIRY, i->first));
+    }
 }
 
 bool CBlockTreeDB::ReadTxIndex(const uint256 &txid, CDiskTxPos &pos) {

@@ -273,26 +273,6 @@ public:
 class CNameCache
 {
 
-private:
-
-  /**
-   * Special comparator class for names that compares by length first.
-   * This is used to sort the cache entry map in the same way as the
-   * database is sorted.
-   */
-  class NameComparator
-  {
-  public:
-    inline bool
-    operator() (const valtype& a, const valtype& b) const
-    {
-      if (a.size () != b.size ())
-        return a.size () < b.size ();
-
-      return a < b;
-    }
-  };
-
 public:
 
   /**
@@ -376,7 +356,7 @@ public:
    * Type of name entry map.  This is public because it is also used
    * by the unit tests.
    */
-  typedef std::map<valtype, CNameData, NameComparator> EntryMap;
+  typedef std::map<valtype, CNameData> EntryMap;
 
 private:
 

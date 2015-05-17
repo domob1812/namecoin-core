@@ -1,3 +1,5 @@
+* implement UNO trie hash computation with low memory
+
 * implement hash caching and computation using the LevelDB
 
 * add regtests that compare -unotrie and -unotrie=0 nodes with respect
