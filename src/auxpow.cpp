@@ -7,6 +7,7 @@
 
 #include "auxpow.h"
 
+#include "compat/endian.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "main.h"
@@ -175,8 +176,9 @@ CAuxPow::check (const uint256& hashAuxBlock, int nChainId,
     if (nSize != (1 << merkleHeight))
         return error("Aux POW merkle branch size does not match parent coinbase");
 
-    int nNonce;
+    uint32_t nNonce;
     memcpy(&nNonce, &pc[4], 4);
+    nNonce = le32toh (nNonce);
 
     if (nChainIndex != getExpectedIndex (nNonce, nChainId, merkleHeight))
         return error("Aux POW wrong index");
@@ -185,7 +187,7 @@ CAuxPow::check (const uint256& hashAuxBlock, int nChainId,
 }
 
 int
-CAuxPow::getExpectedIndex (int nNonce, int nChainId, unsigned h)
+CAuxPow::getExpectedIndex (uint32_t nNonce, int nChainId, unsigned h)
 {
   // Choose a pseudo-random slot in the chain merkle tree
   // but have it be fixed for a size/nonce/chain combination.
@@ -194,7 +196,15 @@ CAuxPow::getExpectedIndex (int nNonce, int nChainId, unsigned h)
   // same chain while reducing the chance that two chains clash
   // for the same slot.
 
-  unsigned rand = nNonce;
+  /* This computation can overflow the uint32 used.  This is not an issue,
+     though, since we take the mod against a power-of-two in the end anyway.
+     This also ensures that the computation is, actually, consistent
+     even if done in 64 bits as it was in the past on some systems.
+
+     Note that h is always <= 30 (enforced by the maximum allowed chain
+     merkle branch length), so that 32 bits are enough for the computation.  */
+
+  uint32_t rand = nNonce;
   rand = rand * 1103515245 + 12345;
   rand += nChainId;
   rand = rand * 1103515245 + 12345;
