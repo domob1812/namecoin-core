@@ -170,16 +170,16 @@ CAuxPow::check (const uint256& hashAuxBlock, int nChainId,
     if (script.end() - pc < 8)
         return error("Aux POW missing chain merkle tree size and nonce in parent coinbase");
 
-    int nSize;
+    uint32_t nSize;
     memcpy(&nSize, &pc[0], 4);
+    nSize = le32toh (nSize);
     const unsigned merkleHeight = vChainMerkleBranch.size ();
-    if (nSize != (1 << merkleHeight))
+    if (nSize != (1u << merkleHeight))
         return error("Aux POW merkle branch size does not match parent coinbase");
 
     uint32_t nNonce;
     memcpy(&nNonce, &pc[4], 4);
     nNonce = le32toh (nNonce);
-
     if (nChainIndex != getExpectedIndex (nNonce, nChainId, merkleHeight))
         return error("Aux POW wrong index");
 
