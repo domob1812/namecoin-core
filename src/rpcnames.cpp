@@ -461,7 +461,7 @@ name_pending (const UniValue& params, bool fHelp)
         "  ...\n"
         "]\n"
         + HelpExampleCli ("name_pending", "")
-        + HelpExampleCli ("name_pending", "\"d/wikileaks\"")
+        + HelpExampleCli ("name_pending", "\"d/domob\"")
         + HelpExampleRpc ("name_pending", "")
       );
 
