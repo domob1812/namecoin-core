@@ -466,7 +466,7 @@ name_pending (const UniValue& params, bool fHelp)
       );
 
 #ifdef ENABLE_WALLET
-    LOCK2 (mempool.cs, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+    LOCK2 (pwalletMain ? &pwalletMain->cs_wallet : NULL, mempool.cs);
 #else
     LOCK (mempool.cs);
 #endif
