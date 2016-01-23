@@ -131,7 +131,7 @@ class BitcoinTestFramework(object):
         if self.options.coveragedir:
             enable_coverage(self.options.coveragedir)
 
-        os.environ['PATH'] = self.options.srcdir+":"+os.environ['PATH']
+        os.environ['PATH'] = self.options.srcdir+":"+self.options.srcdir+"/qt:"+os.environ['PATH']
 
         check_json_precision()
 
@@ -190,10 +190,10 @@ class ComparisonTestFramework(BitcoinTestFramework):
 
     def add_options(self, parser):
         parser.add_option("--testbinary", dest="testbinary",
-                          default=os.getenv("NAMECOIND", "namecoind"),
+                          default=os.getenv("BITCOIND", "namecoind"),
                           help="namecoind binary to test")
         parser.add_option("--refbinary", dest="refbinary",
-                          default=os.getenv("NAMECOIND", "namecoind"),
+                          default=os.getenv("BITCOIND", "namecoind"),
                           help="namecoind binary to use for reference nodes (if any)")
 
     def setup_chain(self):

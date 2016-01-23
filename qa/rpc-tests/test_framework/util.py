@@ -102,12 +102,12 @@ def initialize_datadir(dirname, n):
     if not os.path.isdir(datadir):
         os.makedirs(datadir)
     with open(os.path.join(datadir, "namecoin.conf"), 'w') as f:
-        f.write("regtest=1\n");
-        f.write("rpcuser=rt\n");
-        f.write("rpcpassword=rt\n");
-        f.write("port="+str(p2p_port(n))+"\n");
-        f.write("rpcport="+str(rpc_port(n))+"\n");
-        f.write("listenonion=0\n");
+        f.write("regtest=1\n")
+        f.write("rpcuser=rt\n")
+        f.write("rpcpassword=rt\n")
+        f.write("port="+str(p2p_port(n))+"\n")
+        f.write("rpcport="+str(rpc_port(n))+"\n")
+        f.write("listenonion=0\n")
     return datadir
 
 def base_node_args(i):
@@ -147,14 +147,13 @@ def initialize_chain(test_dir):
         # Create cache directories, run bitcoinds:
         for i in range(4):
             datadir=initialize_datadir("cache", i)
-            args = [ os.getenv("NAMECOIND", "namecoind"), "-keypool=1", "-datadir="+datadir, "-discover=0" ]
-            args.extend(base_node_args(i))
+            args = [ os.getenv("BITCOIND", "namecoind"), "-server", "-keypool=1", "-datadir="+datadir, "-discover=0" ]
             if i > 0:
                 args.append("-connect=127.0.0.1:"+str(p2p_port(0)))
             bitcoind_processes[i] = subprocess.Popen(args)
             if os.getenv("PYTHON_DEBUG", ""):
                 print "initialize_chain: namecoind started, calling namecoin-cli -rpcwait getblockcount"
-            subprocess.check_call([ os.getenv("NAMECOINCLI", "namecoin-cli"), "-datadir="+datadir,
+            subprocess.check_call([ os.getenv("BITCOINCLI", "namecoin-cli"), "-datadir="+datadir,
                                     "-rpcwait", "getblockcount"], stdout=devnull)
             if os.getenv("PYTHON_DEBUG", ""):
                 print "initialize_chain: namecoin-cli -rpcwait getblockcount completed"
@@ -234,16 +233,16 @@ def start_node(i, dirname, extra_args=[], rpchost=None, timewait=None, binary=No
     """
     datadir = os.path.join(dirname, "node"+str(i))
     if binary is None:
-        binary = os.getenv("NAMECOIND", "namecoind")
+        binary = os.getenv("BITCOIND", "namecoind")
     # RPC tests still depend on free transactions
-    args = [ binary, "-datadir="+datadir, "-keypool=1", "-discover=0", "-rest", "-blockprioritysize=50000" ]
+    args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-blockprioritysize=50000" ]
     if extra_args is not None: args.extend(extra_args)
     args.extend(base_node_args(i))
     bitcoind_processes[i] = subprocess.Popen(args)
     devnull = open(os.devnull, "w")
     if os.getenv("PYTHON_DEBUG", ""):
         print "start_node: namecoind started, calling namecoin-cli -rpcwait getblockcount"
-    subprocess.check_call([ os.getenv("NAMECOINCLI", "namecoin-cli"), "-datadir="+datadir] +
+    subprocess.check_call([ os.getenv("BITCOINCLI", "namecoin-cli"), "-datadir="+datadir] +
                           _rpchost_to_args(rpchost)  +
                           ["-rpcwait", "getblockcount"], stdout=devnull)
     if os.getenv("PYTHON_DEBUG", ""):
@@ -424,6 +423,23 @@ def assert_raises(exc, fun, *args, **kwds):
         raise AssertionError("Unexpected exception raised: "+type(e).__name__)
     else:
         raise AssertionError("No exception raised")
+
+def assert_is_hex_string(string):
+    try:
+        int(string, 16)
+    except Exception as e:
+        raise AssertionError(
+            "Couldn't interpret %r as hexadecimal; raised: %s" % (string, e))
+
+def assert_is_hash_string(string, length=64):
+    if not isinstance(string, basestring):
+        raise AssertionError("Expected a string, got type %r" % type(string))
+    elif length and len(string) != length:
+        raise AssertionError(
+            "String of length %d expected; got %d" % (length, len(string)))
+    elif not re.match('[abcdef0-9]+$', string):
+        raise AssertionError(
+            "String %r contains invalid characters for a hash." % string)
 
 def satoshi_round(amount):
     return  Decimal(amount).quantize(Decimal('0.00000001'), rounding=ROUND_DOWN)
