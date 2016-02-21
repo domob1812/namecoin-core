@@ -2494,6 +2494,20 @@ bool CWallet::DelAddressBook(const CTxDestination& address)
     return CWalletDB(strWalletFile).EraseName(CBitcoinAddress(address).ToString());
 }
 
+bool CWallet::WriteNameFirstUpdate(const std::string& name, const std::string& data)
+{
+    if (!fFileBacked)
+        return false;
+    return CWalletDB(strWalletFile).WriteNameFirstUpdate(name, data);
+}
+
+bool CWallet::EraseNameFirstUpdate(const std::string& name)
+{
+    if (!fFileBacked)
+        return false;
+    return CWalletDB(strWalletFile).EraseNameFirstUpdate(name);
+}
+
 bool CWallet::SetDefaultKey(const CPubKey &vchPubKey)
 {
     if (fFileBacked)

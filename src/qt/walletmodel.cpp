@@ -10,6 +10,7 @@
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
 #include "transactiontablemodel.h"
+#include "nametablemodel.h"
 
 #include "base58.h"
 #include "keystore.h"
@@ -18,6 +19,10 @@
 #include "ui_interface.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h" // for BackupWallet
+#include "wallet/rpcwallet.cpp"
+#include "names/common.h"
+#include "rpc/server.h"
+#include "util.h"
 
 #include <stdint.h>
 
@@ -25,11 +30,15 @@
 #include <QSet>
 #include <QTimer>
 
+#include <univalue.h>
 #include <boost/foreach.hpp>
+
+#include <map>
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
     transactionTableModel(0),
+    nameTableModel(0),
     recentRequestsTableModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
     cachedEncryptionStatus(Unencrypted),
@@ -40,6 +49,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, Op
 
     addressTableModel = new AddressTableModel(wallet, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
+    nameTableModel = new NameTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
 
     // This timer will be fired repeatedly to update the balance
@@ -132,6 +142,8 @@ void WalletModel::pollBalanceChanged()
         checkBalanceChanged();
         if(transactionTableModel)
             transactionTableModel->updateConfirmations();
+
+        sendPendingNameFirstUpdates();
     }
 }
 
@@ -378,6 +390,12 @@ OptionsModel *WalletModel::getOptionsModel()
 AddressTableModel *WalletModel::getAddressTableModel()
 {
     return addressTableModel;
+}
+
+
+NameTableModel *WalletModel::getNameTableModel()
+{
+      return nameTableModel;
 }
 
 TransactionTableModel *WalletModel::getTransactionTableModel()
@@ -667,4 +685,211 @@ bool WalletModel::saveReceiveRequest(const std::string &sAddress, const int64_t 
         return wallet->EraseDestData(dest, key);
     else
         return wallet->AddDestData(dest, key, sRequest);
+}
+
+bool WalletModel::nameAvailable(const QString &name)
+{
+    UniValue params (UniValue::VOBJ);
+    UniValue res, array, isExpired;
+
+    const std::string strName = name.toStdString();
+    params.push_back (Pair("name", strName));
+
+    try {
+        res = name_show( params, false);
+    } catch (const UniValue& e) {
+        return true;
+    }
+
+    isExpired = find_value( res, "expired");
+    if(isExpired.get_bool())
+      return true;
+
+    return false;
+}
+
+NameNewReturn WalletModel::nameNew(const QString &name)
+{
+    std::string strName = name.toStdString ();
+    std::string data;
+
+    UniValue params(UniValue::VOBJ);
+    std::vector<UniValue> values;
+    UniValue res, txid, rand;
+
+    // uint64_t rand;
+    // uint160 hash;
+    // QString address;
+    // std::vector<unsigned char> vchName;
+
+    NameNewReturn retval;
+
+    params.push_back (Pair("name", strName));
+    try {
+        res = name_new (params, false);
+    } catch (const UniValue& e) {
+        std::string strErr = e.getValStr();
+        LogPrintf ("nameNew Error: %s\n", strErr.c_str());
+        retval.err_msg = strErr;
+        retval.ok = false;
+        return retval;
+    }
+
+    // NOTE: this ok var seems to be used as a temporary
+    // 'did this succeed' check because the UI code used to
+    // do all the checks/wallet stuff itself
+    retval.ok = true;
+
+    values = res.getValues ();
+    txid = values[0];
+    rand = values[1];
+
+    // txid
+    retval.hex = txid.get_str ();
+    // rand
+    retval.rand = rand.get_str ();
+
+    return retval;
+}
+
+// this gets called from configure names dialog after name_new succeeds
+QString WalletModel::nameFirstUpdatePrepare(const QString& name, const QString& data)
+{
+    if (data.isEmpty())
+        return tr("Data cannot be blank.");
+
+    const std::string strName = name.toStdString ();
+    const std::string strData = data.toStdString();
+    NameNewReturn updatedNameNewReturn;
+
+    // we need to write out everything in NameNewReturn to the wallet, essentially
+    // that's where wallet->WriteNameFirstUpdate comes in
+    // it gets loaded at wallet start, and as long as we keep it updated as
+    // things happen, we should be able to rely on it
+
+    LOCK(cs_main);
+    // pendingNameFirstUpdate is set by the time we get here inside managenamespage.cpp:134
+    std::map<std::string, NameNewReturn>::iterator it = pendingNameFirstUpdate.find(strName);
+
+    if (it == pendingNameFirstUpdate.end())
+        return tr("Cannot find stored name_new data for name");
+
+    const std::string txid = it->second.hex;
+    const std::string rand = it->second.rand;
+    const std::string toaddress = it->second.toaddress;
+
+    updatedNameNewReturn.ok = true;
+    updatedNameNewReturn.hex = txid;
+    updatedNameNewReturn.rand = rand;
+    updatedNameNewReturn.data = strData;
+    if(!toaddress.empty ())
+        updatedNameNewReturn.toaddress = toaddress;
+
+    it->second = updatedNameNewReturn;
+
+    UniValue uniNameUpdateData(UniValue::VOBJ);
+    uniNameUpdateData.pushKV ("txid", txid);
+    uniNameUpdateData.pushKV ("rand", rand);
+    uniNameUpdateData.pushKV ("data", strData);
+    if(!toaddress.empty ())
+        uniNameUpdateData.pushKV ("toaddress", toaddress);
+
+    std::string jsonData = uniNameUpdateData.write();
+    LogPrintf ("Writing name_firstupdate %s => %s\n", strName.c_str(), jsonData.c_str());
+    wallet->WriteNameFirstUpdate(strName, jsonData);
+    return tr("");
+}
+
+void WalletModel::sendPendingNameFirstUpdates()
+{
+    for (std::map<std::string, NameNewReturn>::iterator i = pendingNameFirstUpdate.begin();
+         i != pendingNameFirstUpdate.end(); )
+    {
+        UniValue params1(UniValue::VOBJ), params2(UniValue::VOBJ);
+        UniValue res1, res2, val;
+
+        std::string strName = i->first;
+        std::string txid = i->second.hex;
+        std::string rand = i->second.rand;
+        std::string data = i->second.data;
+        std::string toaddress = i->second.toaddress;
+
+        params1.push_back (Pair("txid", txid));
+
+        // if we're here, the names doesn't exist
+        // should we remove it from the DB?
+        try {
+            res1 = gettransaction( params1, false);
+        }
+        catch (const UniValue& e) {
+            LogPrintf ("gettransaction error for name %s: %s\n", strName.c_str(), e.getValStr().c_str());
+            ++i;
+            continue;
+        }
+
+        val = find_value (res1, "confirmations");
+        if (!val.isNum ())
+        {
+            LogPrintf ("No confirmations for name %s\n", strName.c_str());
+            ++i;
+            continue;
+        }
+
+        const int confirms = val.get_int ();
+        LogPrintf ("Pending Name FirstUpdate Confirms: %d\n", confirms);
+
+        if ( confirms < 12)
+        {
+            ++i;
+            continue;
+        }
+
+        params2 = UniValue::VOBJ;
+        params2.push_back (Pair("name", strName));
+        params2.push_back (Pair("rand", rand));
+        params2.push_back (Pair("tx", txid));
+        params2.push_back (Pair("value", data));
+        if(!toaddress.empty())
+            params2.push_back (Pair("toaddress", toaddress));
+
+        try {
+            res2 = name_firstupdate (params2, false);
+        }
+        catch (const UniValue& e) {
+            LogPrintf ("name_firstupdate error: %s\n", e.getValStr().c_str());
+            ++i;
+            continue;
+        }
+
+        LogPrintf ("sent name_firstupdate %s\n", strName.c_str());
+        pendingNameFirstUpdate.erase(i++);
+        wallet->EraseNameFirstUpdate(strName);
+    }
+}
+
+QString WalletModel::nameUpdate(const QString &name, const QString &data, const QString &transferToAddress)
+{
+    std::string strName = name.toStdString ();
+    std::string strData = data.toStdString ();
+    std::string strTransferToAddress = transferToAddress.toStdString ();
+
+    UniValue params(UniValue::VOBJ);
+    UniValue res;
+
+    std::string tx;
+
+    params.push_back (Pair("name", strName));
+    params.push_back (Pair("value", strData));
+
+    if (strTransferToAddress != "")
+        params.push_back (Pair("toaddress", strTransferToAddress));
+
+    try {
+        res = name_update (params, false);
+    }
+    catch (const UniValue& e) {
+        LogPrintf ("name_update error: %s\n", e.getValStr().c_str());
+        return tr("Error!");
+    }
+    return tr ("");
 }

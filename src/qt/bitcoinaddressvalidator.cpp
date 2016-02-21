@@ -15,8 +15,8 @@
   - All lower-case letters except for 'l'
 */
 
-BitcoinAddressEntryValidator::BitcoinAddressEntryValidator(QObject *parent) :
-    QValidator(parent)
+BitcoinAddressEntryValidator::BitcoinAddressEntryValidator(QObject *parent, bool fAllowEmpty) :
+    QValidator(parent), allowEmpty(fAllowEmpty)
 {
 }
 
@@ -25,7 +25,7 @@ QValidator::State BitcoinAddressEntryValidator::validate(QString &input, int &po
     Q_UNUSED(pos);
 
     // Empty address is "intermediate" input
-    if (input.isEmpty())
+    if (input.isEmpty() && !allowEmpty)
         return QValidator::Intermediate;
 
     // Correction
