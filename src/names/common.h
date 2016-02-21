@@ -485,4 +485,16 @@ public:
 
 };
 
+struct NameNewReturn
+{
+    bool ok;
+    std::string err_msg;
+    std::string toaddress;
+    std::string hex;
+    std::string rand;
+    std::string data;
+};
+
+extern std::map<std::string, NameNewReturn > pendingNameFirstUpdate;
+
 #endif // H_BITCOIN_NAMES_COMMON

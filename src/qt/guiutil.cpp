@@ -128,7 +128,7 @@ static std::string DummyAddress(const CChainParams &params)
     return "";
 }
 
-void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent)
+void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent, bool fAllowEmpty)
 {
     parent->setFocusProxy(widget);
 
@@ -139,7 +139,7 @@ void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent)
     widget->setPlaceholderText(QObject::tr("Enter a Namecoin address (e.g. %1)").arg(
         QString::fromStdString(DummyAddress(Params()))));
 #endif
-    widget->setValidator(new BitcoinAddressEntryValidator(parent));
+    widget->setValidator(new BitcoinAddressEntryValidator(parent, fAllowEmpty));
     widget->setCheckValidator(new BitcoinAddressCheckValidator(parent));
 }
 
