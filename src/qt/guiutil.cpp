@@ -111,7 +111,7 @@ QFont fixedPitchFont()
 #endif
 }
 
-void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent)
+void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent, bool fAllowEmpty)
 {
     parent->setFocusProxy(widget);
 
@@ -121,7 +121,7 @@ void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent)
     // and this is the only place, where this address is supplied.
     widget->setPlaceholderText(QObject::tr("Enter a Namecoin address (e.g. %1)").arg("N1KHAL5C1CRzy58NdJwp1tbLze3XrkFxx9"));
 #endif
-    widget->setValidator(new BitcoinAddressEntryValidator(parent));
+    widget->setValidator(new BitcoinAddressEntryValidator(parent, fAllowEmpty));
     widget->setCheckValidator(new BitcoinAddressCheckValidator(parent));
 }
 
