@@ -290,13 +290,18 @@ void NameTableModel::updateExpiration()
             //         return nHeight - 12000;
             //     return 36000;
             // }
-            if (nHeight + 36000 - nBestHeight <= 0)
+
+            const Consensus::Params& params = Params ().GetConsensus ();
+            if (nHeight + params.rules->NameExpirationDepth (nHeight) - nBestHeight <= 0)
             {
+            //if (nHeight + 36000 - nBestHeight <= 0)
+            //{
                 priv->updateEntry(item->name, item->value, item->nHeight, CT_DELETED);
                 // Data array changed - restart scan
                 n = priv->size();
                 i = -1;
             }
+
         }
         // Invalidate expiration counter for all rows.
         // Qt is smart enough to only actually request the data for the

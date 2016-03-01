@@ -201,14 +201,7 @@ void ManageNamesPage::selectionChanged()
     if(!table->selectionModel())
         return;
 
-    if(table->selectionModel()->hasSelection())
-    {
-        ui->configureNameButton->setEnabled(true);
-    }
-    else
-    {
-        ui->configureNameButton->setEnabled(false);
-    }
+    ui->configureNameButton->setEnabled(table->selectionModel()->hasSelection());
 }
 
 void ManageNamesPage::contextualMenu(const QPoint &point)
