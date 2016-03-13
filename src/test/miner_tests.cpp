@@ -57,6 +57,41 @@ struct {
     {2, 0xbbbeb305}, {2, 0xfe1c810a},
 };
 
+namespace {
+
+// Thin wrapper around BlockAssembler that unsets the block's auxpow
+// version flag.  This is necessary for the predefined data here
+// to make sense.
+class BlockAssembler2
+{
+
+public:
+
+  explicit inline BlockAssembler2 (const CChainParams& chainparams)
+    : assembler(chainparams)
+  {}
+
+  CBlockTemplate* CreateNewBlock (const CScript& scriptPubKeyIn);
+
+private:
+
+  BlockAssembler assembler;
+
+};
+
+CBlockTemplate*
+BlockAssembler2::CreateNewBlock(const CScript& scriptPubKeyIn)
+{
+  CBlockTemplate* res = assembler.CreateNewBlock (scriptPubKeyIn);
+  res->block.nVersion &= ~CPureBlockHeader::VERSION_AUXPOW;
+  assert (!res->block.IsAuxpow ());
+  return res;
+}
+
+#define BlockAssembler BlockAssembler2
+
+} // anonymous namespace
+
 CBlockIndex CreateBlockIndex(int nHeight)
 {
     CBlockIndex index;
@@ -500,5 +535,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
 
     fCheckpointsEnabled = true;
 }
+
+#undef CreateNewBlock
 
 BOOST_AUTO_TEST_SUITE_END()

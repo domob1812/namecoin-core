@@ -1007,6 +1007,7 @@ UniValue getauxblock(const UniValue& params, bool fHelp)
             std::unique_ptr<CBlockTemplate> newBlock(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
             if (!newBlock)
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "out of memory");
+            assert(newBlock->block.IsAuxpow());
 
             // Update state only when CreateNewBlock succeeded
             nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
@@ -1015,7 +1016,6 @@ UniValue getauxblock(const UniValue& params, bool fHelp)
 
             // Finalise it by setting the version and building the merkle root
             IncrementExtraNonce(&newBlock->block, pindexPrev, nExtraNonce);
-            newBlock->block.SetAuxpowVersion(true);
 
             // Save
             pblock = &newBlock->block;

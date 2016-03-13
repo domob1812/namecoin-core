@@ -20,7 +20,11 @@ BOOST_FIXTURE_TEST_SUITE(blockencodings_tests, RegtestingSetup)
 
 static void SetBlockVersion(CPureBlockHeader& header, int32_t baseVersion) {
   const int32_t nChainId = Params().GetConsensus().nAuxpowChainId;
-  header.SetBaseVersion(baseVersion, nChainId);
+  header.SetVersionAndChainId(baseVersion, nChainId);
+
+  /* Unset auxpow flag, since the blocks here do not contain any auxpows.  */
+  header.nVersion &= ~CPureBlockHeader::VERSION_AUXPOW;
+  assert (!header.IsAuxpow ());
 }
 
 static CBlock BuildBlockTestCase() {

@@ -1636,7 +1636,7 @@ bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params
 {
     /* Except for legacy blocks with full version 1, ensure that
        the chain ID is correct.  Legacy blocks are not allowed since
-       the merge-mining start, which is checked in AcceptBlockHeader
+       the merge-mining start, which is checked in ContextualCheckBlockHeader
        where the height is known.  */
     if (!block.IsLegacy() && params.fStrictChainId
         && block.GetChainId() != params.nAuxpowChainId)
@@ -1652,6 +1652,11 @@ bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params
             return error("%s : no auxpow on block with auxpow version",
                          __func__);
 
+        /* This should only ever happen before the always-auxpow fork.
+           Afterwards, IsAuxpow returns always true.  Nevertheless enforce
+           this check here just to be sure.  */
+        assert (!block.AlwaysAuxpowActive ());
+
         if (!CheckProofOfWork(block.GetHash(), block.nBits, params))
             return error("%s : non-AUX proof of work failed", __func__);
 
@@ -1661,6 +1666,10 @@ bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params
     /* We have auxpow.  Check it.  */
     if (!block.IsAuxpow())
         return error("%s : auxpow on block with non-auxpow version", __func__);
+
+    if (!block.AlwaysAuxpowActive() && params.fStrictChainId
+          && block.auxpow->parentBlock.GetChainId () == block.GetChainId ())
+        return error("%s : Aux POW parent has our chain ID", __func__);
 
     if (!block.auxpow->check(block.GetHash(), block.GetChainId(), params))
         return error("%s : AUX POW is not valid", __func__);
@@ -3563,6 +3572,7 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev, int64_t nAdjustedTime)
 {
     // Disallow legacy blocks after merge-mining start.
+    // FIXME: Get rid of this after the always-auxpow fork is active.
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
     if (!Params().GetConsensus().AllowLegacyBlocks(nHeight) && block.IsLegacy())
         return state.DoS(100, error("%s : legacy block after auxpow start",

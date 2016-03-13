@@ -328,7 +328,7 @@ public:
     /* Analyse the block version.  */
     inline int GetBaseVersion() const
     {
-        return CPureBlockHeader::GetBaseVersion(nVersion);
+        return CPureBlockHeader::GetBaseVersion(nTime, nVersion);
     }
 
 };
