@@ -560,7 +560,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
     // Update nTime
-    UpdateTime(pblock, consensusParams, pindexPrev);
+    UpdateTime(pblock, pblock->nVersion, consensusParams, pindexPrev);
     pblock->nNonce = 0;
 
     // NOTE: If at some point we support pre-segwit miners post-segwit-activation, this needs to take segwit support into consideration
@@ -1027,6 +1027,7 @@ UniValue AuxMiningCreateBlock(const CScript& scriptPubKey)
             = BlockAssembler(Params()).CreateNewBlock(scriptPubKey);
         if (!newBlock)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "out of memory");
+        assert(newBlock->block.IsAuxpow());
 
         // Update state only when CreateNewBlock succeeded
         nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
@@ -1035,7 +1036,6 @@ UniValue AuxMiningCreateBlock(const CScript& scriptPubKey)
 
         // Finalise it by setting the version and building the merkle root
         IncrementExtraNonce(&newBlock->block, pindexPrev, nExtraNonce);
-        newBlock->block.SetAuxpowVersion(true);
 
         // Save
         pblock = &newBlock->block;

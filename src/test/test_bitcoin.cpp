@@ -4,6 +4,7 @@
 
 #include "test_bitcoin.h"
 
+#include "auxpow.h"
 #include "chainparams.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
@@ -126,8 +127,11 @@ TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>&
     // IncrementExtraNonce creates a valid coinbase and merkleRoot
     unsigned int extraNonce = 0;
     IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
+    assert (block.IsAuxpow ());
+    CAuxPow::initAuxPow(block);
 
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())) ++block.nNonce;
+    CPureBlockHeader& miningHeader = block.auxpow->parentBlock;
+    while (!CheckProofOfWork(miningHeader.GetHash(), block.nBits, chainparams.GetConsensus())) ++miningHeader.nNonce;
 
     std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(block);
     ProcessNewBlock(chainparams, shared_pblock, true, NULL);

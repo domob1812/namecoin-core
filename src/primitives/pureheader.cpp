@@ -13,9 +13,19 @@ uint256 CPureBlockHeader::GetHash() const
     return SerializeHash(*this);
 }
 
-void CPureBlockHeader::SetBaseVersion(int32_t nBaseVersion, int32_t nChainId)
+void CPureBlockHeader::SetVersionAndChainId(int32_t ver, int32_t chainId)
 {
-    assert(nBaseVersion >= 1 && nBaseVersion < VERSION_AUXPOW);
-    assert(!IsAuxpow());
-    nVersion = nBaseVersion | (nChainId * VERSION_CHAIN_START);
+  if (!AlwaysAuxpowActive ())
+    {
+      assert (ver >= 0 && ver < VERSION_AUXPOW);
+      nVersion = ver
+                  | (chainId * VERSION_CHAIN_START)
+                  | VERSION_AUXPOW;
+    }
+  else
+    {
+      assert (chainId >= 0 && chainId <= NONCE_CHAINID_MASK);
+      nVersion = ver;
+      nNonce = chainId;
+    }
 }
