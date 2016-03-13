@@ -1,0 +1,7 @@
+* add unit test for behaviour after the fork point
+
+* add regtests before/after the fork with mocktime
+
+* remove BDB lock limit in fork
+
+* get rid of tx Namecoin version as well?

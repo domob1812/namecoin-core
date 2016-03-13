@@ -57,6 +57,20 @@ struct {
     {2, 0xbbbeb305}, {2, 0xfe1c810a},
 };
 
+// Thin wrapper around CreateNewBlock that unsets the block's auxpow
+// version flag.  This is necessary for the predefined data here
+// to make sense.
+static CBlockTemplate*
+CreateNewBlock2(const CChainParams& chainparams, const CScript& scriptPubKeyIn)
+{
+  CBlockTemplate* res = CreateNewBlock (chainparams, scriptPubKeyIn);
+  res->block.nVersion &= ~CPureBlockHeader::VERSION_AUXPOW;
+  assert (!res->block.IsAuxpow ());
+  return res;
+}
+
+#define CreateNewBlock CreateNewBlock2
+
 CBlockIndex CreateBlockIndex(int nHeight)
 {
     CBlockIndex index;
@@ -385,5 +399,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
 
     fCheckpointsEnabled = true;
 }
+
+#undef CreateNewBlock
 
 BOOST_AUTO_TEST_SUITE_END()
