@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2015 Daniel Kraft
+// Copyright (c) 2014-2016 Daniel Kraft
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -467,6 +467,58 @@ BOOST_AUTO_TEST_CASE (auxpow_pow)
   BOOST_CHECK (CheckProofOfWork (block, params));
   tamperWith (block.hashMerkleRoot);
   BOOST_CHECK (!CheckProofOfWork (block, params));
+}
+
+/* ************************************************************************** */
+
+BOOST_AUTO_TEST_CASE (auxpow_alwaysfork)
+{
+  /* Use regtest parameters to allow mining with easy difficulty.  */
+  SelectParams (CBaseChainParams::REGTEST);
+  const Consensus::Params& params = Params().GetConsensus();
+
+  const arith_uint256 target = (~arith_uint256(0) >> 1);
+  CBlockHeader block;
+  block.nBits = target.GetCompact ();
+  block.nTime = 2000000000;
+  assert (block.AlwaysAuxpowActive ());
+
+  /* Mining the block without auxpow should no longer be possible.  */
+
+  block.nVersion = 1;
+  mineBlock (block, true);
+  BOOST_CHECK (!CheckProofOfWork (block, params));
+
+  block.SetVersionAndChainId (2, params.nAuxpowChainId);
+  mineBlock (block, true);
+  BOOST_CHECK (!CheckProofOfWork (block, params));
+
+  /* Add auxpow with our chain ID in the parent.  This should now be
+     allowed after the fork.  */
+
+  const int32_t ourChainId = params.nAuxpowChainId;
+  CAuxpowBuilder builder(5, ourChainId);
+  CAuxPow auxpow;
+  const unsigned height = 3;
+  const int nonce = 7;
+  const int index = CAuxPow::getExpectedIndex (nonce, ourChainId, height);
+  valtype auxRoot, data;
+
+  block.SetVersionAndChainId (2, ourChainId);
+  BOOST_CHECK (block.IsAuxpow ());
+  auxRoot = builder.buildAuxpowChain (block.GetHash (), height, index);
+  data = CAuxpowBuilder::buildCoinbaseData (true, auxRoot, height, nonce);
+  builder.setCoinbase (CScript () << data);
+
+  mineBlock (builder.parentBlock, false, block.nBits);
+  block.SetAuxpow (new CAuxPow (builder.get ()));
+  BOOST_CHECK (!CheckProofOfWork (block, params));
+  mineBlock (builder.parentBlock, true, block.nBits);
+  block.SetAuxpow (new CAuxPow (builder.get ()));
+  BOOST_CHECK (CheckProofOfWork (block, params));
+
+  BOOST_CHECK (block.nVersion == 2 && block.GetChainId () == ourChainId);
+  BOOST_CHECK (block.auxpow->parentBlock.GetChainId () == ourChainId);
 }
 
 /* ************************************************************************** */
