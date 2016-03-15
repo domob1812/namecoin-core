@@ -24,8 +24,6 @@ public:
     static const int32_t VERSION_AUXPOW = (1 << 8);
     static const int32_t VERSION_CHAIN_START = (1 << 16);
 
-private:
-
     /**
      * Mask for nonce that yields the chain ID after the always-auxpow fork.
      * Since chain ID is only 16 bits, we may want to use other bits from the
@@ -41,6 +39,8 @@ private:
      */
     /* FIXME: Set to 2017-01-01 for now, change later as necessary!  */
     static const int64_t ALWAYS_AUXPOW_FORK_TIME = 1483225200;
+
+private:
 
     static inline int32_t GetBaseVersion(int32_t time, int32_t ver)
     {
