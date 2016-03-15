@@ -61,6 +61,14 @@ using namespace std;
 
 CCriticalSection cs_main;
 
+/**
+ * Temporary "second" fork time for when the auxpow parent block is allowed
+ * to take on the same chain ID.
+ * FIXME: Remove once the chain is beyond this point.
+ * FIXME: Update value, currently 2017-01-02.
+ */
+static const int32_t FORK_TIME_SAME_CHAIN_ID = 1483311600;
+
 BlockMap mapBlockIndex;
 CChain chainActive;
 CBlockIndex *pindexBestHeader = NULL;
@@ -1667,7 +1675,8 @@ bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params
     if (!block.IsAuxpow())
         return error("%s : auxpow on block with non-auxpow version", __func__);
 
-    if (!block.AlwaysAuxpowActive() && params.fStrictChainId
+    /* FIXME: Get rid of this check once we are beyond that point in time.  */
+    if (block.GetBlockTime() < FORK_TIME_SAME_CHAIN_ID && params.fStrictChainId
           && block.auxpow->parentBlock.GetChainId () == block.GetChainId ())
         return error("%s : Aux POW parent has our chain ID", __func__);
 
