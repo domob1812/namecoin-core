@@ -519,6 +519,25 @@ BOOST_AUTO_TEST_CASE (auxpow_alwaysfork)
 
   BOOST_CHECK (block.nVersion == 2 && block.GetChainId () == ourChainId);
   BOOST_CHECK (block.auxpow->parentBlock.GetChainId () == ourChainId);
+  BOOST_CHECK (!block.auxpow->parentBlock.AlwaysAuxpowActive ());
+
+  /* Check that same-chain ID parent blocks are still rejected during
+     the transition time window.  */
+
+  block.nTime = CPureBlockHeader::ALWAYS_AUXPOW_FORK_TIME;
+  BOOST_CHECK (block.IsAuxpow ());
+  auxRoot = builder.buildAuxpowChain (block.GetHash (), height, index);
+  data = CAuxpowBuilder::buildCoinbaseData (true, auxRoot, height, nonce);
+  builder.setCoinbase (CScript () << data);
+
+  mineBlock (builder.parentBlock, true, block.nBits);
+  block.SetAuxpow (new CAuxPow (builder.get ()));
+  BOOST_CHECK (!CheckProofOfWork (block, params));
+
+  builder.parentBlock.SetVersionAndChainId (2, 100);
+  mineBlock (builder.parentBlock, true, block.nBits);
+  block.SetAuxpow (new CAuxPow (builder.get ()));
+  BOOST_CHECK (CheckProofOfWork (block, params));
 }
 
 /* ************************************************************************** */
