@@ -18,13 +18,36 @@
  */
 class CPureBlockHeader
 {
+public:
+
+    /* Constants used in the legacy nVersion encoding.  */
+    static const int32_t VERSION_AUXPOW = (1 << 8);
+    static const int32_t VERSION_CHAIN_START = (1 << 16);
+
+    /**
+     * Mask for nonce that yields the chain ID after the always-auxpow fork.
+     * Since chain ID is only 16 bits, we may want to use other bits from the
+     * nonce for more information in the future.
+     */
+    static const int32_t NONCE_CHAINID_MASK = 0xffff;
+
+    /**
+     * Block time that activates the always-auxpow hardfork.  Since this
+     * fork changes the header serialisation format, we specify it on
+     * a very low level and do not involve any chain parameters.  Otherwise
+     * those would be needed whenever we serialise/deserialise a header.
+     */
+    /* FIXME: Set to 2017-01-01 for now, change later as necessary!  */
+    static const int64_t ALWAYS_AUXPOW_FORK_TIME = 1483225200;
+
 private:
 
-    /* Modifiers to the version.  */
-    static const int32_t VERSION_AUXPOW = (1 << 8);
-
-    /** Bits above are reserved for the auxpow chain ID.  */
-    static const int32_t VERSION_CHAIN_START = (1 << 16);
+    static inline int32_t GetBaseVersion(int32_t time, int32_t ver)
+    {
+        if (time >= ALWAYS_AUXPOW_FORK_TIME)
+          return ver;
+        return ver % VERSION_AUXPOW;
+    }
 
 public:
     // header
@@ -75,33 +98,21 @@ public:
         return (int64_t)nTime;
     }
 
-    /* Below are methods to interpret the version with respect to
-       auxpow data and chain ID.  This used to be in the CBlockVersion
-       class, but was moved here when we switched back to nVersion being
-       a pure int member as preparation to undoing the "abuse" and
-       allowing BIP9 to work.  */
+    /**
+     * Initialise a block's version and chain ID.  The block is always
+     * assumed to be merge-mined, since that's what all generated blocks
+     * are nowadays.
+     */
+    void SetVersionAndChainId(int32_t ver, int32_t chainId);
 
     /**
      * Extract the base version (without modifiers and chain ID).
-     * @return The base version./
+     * @return The base version.
      */
     inline int32_t GetBaseVersion() const
     {
-        return GetBaseVersion(nVersion);
+        return GetBaseVersion(nTime, nVersion);
     }
-    static inline int32_t GetBaseVersion(int32_t ver)
-    {
-        return ver % VERSION_AUXPOW;
-    }
-
-    /**
-     * Set the base version (apart from chain ID and auxpow flag) to
-     * the one given.  This should only be called when auxpow is not yet
-     * set, to initialise a block!
-     * @param nBaseVersion The base version.
-     * @param nChainId The auxpow chain ID.
-     */
-    void SetBaseVersion(int32_t nBaseVersion, int32_t nChainId);
 
     /**
      * Extract the chain ID.
@@ -109,17 +120,9 @@ public:
      */
     inline int32_t GetChainId() const
     {
+        if (AlwaysAuxpowActive ())
+            return nNonce & NONCE_CHAINID_MASK;
         return nVersion / VERSION_CHAIN_START;
-    }
-
-    /**
-     * Set the chain ID.  This is used for the test suite.
-     * @param ch The chain ID to set.
-     */
-    inline void SetChainId(int32_t chainId)
-    {
-        nVersion %= VERSION_CHAIN_START;
-        nVersion |= chainId * VERSION_CHAIN_START;
     }
 
     /**
@@ -128,29 +131,37 @@ public:
      */
     inline bool IsAuxpow() const
     {
+        if (AlwaysAuxpowActive ())
+            return true;
         return nVersion & VERSION_AUXPOW;
-    }
-
-    /**
-     * Set the auxpow flag.  This is used for testing.
-     * @param auxpow Whether to mark auxpow as true.
-     */
-    inline void SetAuxpowVersion (bool auxpow)
-    {
-        if (auxpow)
-            nVersion |= VERSION_AUXPOW;
-        else
-            nVersion &= ~VERSION_AUXPOW;
     }
 
     /**
      * Check whether this is a "legacy" block without chain ID.
      * @return True iff it is.
      */
+    /* FIXME: Get rid of this once the chain is beyond the always-auxpow
+       fork.  Then this is no longer needed.  */
     inline bool IsLegacy() const
     {
+        if (AlwaysAuxpowActive ())
+            return false;
         return nVersion == 1;
     }
+
+    /**
+     * Check whether the always-auxpow fork is active in this block.
+     * This is made publicly available since the fork triggers also
+     * other things (like the BDB lock limit).
+     */
+    inline bool AlwaysAuxpowActive() const
+    {
+        return GetBlockTime() >= ALWAYS_AUXPOW_FORK_TIME;
+    }
+
+    /* Friend CBlockIndex so that it can access the otherwise
+       private logic about interpreting nVersion.  */
+    friend class CBlockIndex;
 };
 
 #endif // BITCOIN_PRIMITIVES_PUREHEADER_H

@@ -38,14 +38,22 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(*(CPureBlockHeader*)this);
-        nVersion = this->GetBaseVersion();
+        nVersion = GetBaseVersion();
 
-        if (this->IsAuxpow())
+        if (IsAuxpow())
         {
             if (ser_action.ForRead())
                 auxpow.reset (new CAuxPow());
-            assert(auxpow);
-            READWRITE(*auxpow);
+
+            /* One problem here is the following:  During CreateNewBlock,
+               the block validity is checked, which also involves computing
+               the block's size.  At this point, the auxpow is not yet set.
+               Thus, allow writing with unset auxpow even if IsAuxpow() is true
+               (as is always the case after the always-auxpow fork).  */
+            if (auxpow)
+                READWRITE(*auxpow);
+            else
+                assert (!ser_action.ForRead());
         } else if (ser_action.ForRead())
             auxpow.reset();
     }
@@ -57,11 +65,14 @@ public:
     }
 
     /**
-     * Set the block's auxpow (or unset it).  This takes care of updating
-     * the version accordingly.
-     * @param apow Pointer to the auxpow to use or NULL.
+     * Set the block's auxpow.
+     * @param apow Pointer to the auxpow to use.
      */
-    void SetAuxpow (CAuxPow* apow);
+    void SetAuxpow (CAuxPow* apow)
+    {
+        assert (apow && IsAuxpow ());
+        auxpow.reset (apow);
+    }
 };
 
 

@@ -1,0 +1,5 @@
+* remove BDB lock limit in fork
+
+* enable BIP16 and BIP30 at the same time
+
+* get rid of tx Namecoin version as well?

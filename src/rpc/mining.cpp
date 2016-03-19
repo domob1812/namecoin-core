@@ -844,6 +844,7 @@ UniValue getauxblock(const UniValue& params, bool fHelp)
             pblocktemplate = CreateNewBlock(Params(), coinbaseScript->reserveScript);
             if (!pblocktemplate)
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "out of memory");
+            assert(pblocktemplate->block.IsAuxpow());
 
             // Update state only when CreateNewBlock succeeded
             nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
@@ -853,7 +854,6 @@ UniValue getauxblock(const UniValue& params, bool fHelp)
             // Finalise it by setting the version and building the merkle root
             CBlock* pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
-            pblock->SetAuxpowVersion(true);
 
             // Save
             mapNewBlock[pblock->GetHash()] = pblock;

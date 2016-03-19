@@ -57,6 +57,14 @@ using namespace std;
 
 CCriticalSection cs_main;
 
+/**
+ * Temporary "second" fork time for when the auxpow parent block is allowed
+ * to take on the same chain ID.
+ * FIXME: Remove once the chain is beyond this point.
+ * FIXME: Update value, currently 2017-01-02.
+ */
+static const int32_t FORK_TIME_SAME_CHAIN_ID = 1483311600;
+
 BlockMap mapBlockIndex;
 CChain chainActive;
 CBlockIndex *pindexBestHeader = NULL;
@@ -1505,14 +1513,16 @@ bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params
 {
     /* Except for legacy blocks with full version 1, ensure that
        the chain ID is correct.  Legacy blocks are not allowed since
-       the merge-mining start, which is checked in AcceptBlockHeader
+       the merge-mining start, which is checked in ContextualCheckBlockHeader
        where the height is known.  */
     if (!block.IsLegacy() && params.fStrictChainId
         && block.GetChainId() != params.nAuxpowChainId)
         return error("%s : block does not have our chain ID"
-                     " (got %d, expected %d, full nVersion %d)",
+                     " (got %d, expected %d,"
+                     " full nTime %d, nVersion %d, nNonce %d)",
                      __func__, block.GetChainId(),
-                     params.nAuxpowChainId, block.nVersion);
+                     params.nAuxpowChainId,
+                     block.nTime, block.nVersion, block.nNonce);
 
     /* If there is no auxpow, just check the block hash.  */
     if (!block.auxpow)
@@ -1520,6 +1530,11 @@ bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params
         if (block.IsAuxpow())
             return error("%s : no auxpow on block with auxpow version",
                          __func__);
+
+        /* This should only ever happen before the always-auxpow fork.
+           Afterwards, IsAuxpow returns always true.  Nevertheless enforce
+           this check here just to be sure.  */
+        assert (!block.AlwaysAuxpowActive ());
 
         if (!CheckProofOfWork(block.GetHash(), block.nBits, params))
             return error("%s : non-AUX proof of work failed", __func__);
@@ -1533,10 +1548,19 @@ bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params
         return error("%s : auxpow on block with non-auxpow version", __func__);
 
     /* Temporary check:  Disallow parent blocks with auxpow version.  This is
-       for compatibility with the old client.  */
-    /* FIXME: Remove this check with a hardfork later on.  */
-    if (block.auxpow->getParentBlock().IsAuxpow())
+       for compatibility with the old client.  We use the old flag check
+       with nVersion instead of calling IsAuxpow(), so that this does not
+       fail if the parent block's nTime is beyond the fork point
+       but our time is not yet.  */
+    /* FIXME: Remove this check once we are beyond this point in time.  */
+    if (!block.AlwaysAuxpowActive ()
+          && (block.auxpow->getParentBlock().nVersion & CPureBlockHeader::VERSION_AUXPOW))
         return error("%s : auxpow parent block has auxpow version", __func__);
+
+    /* FIXME: Get rid of this check once we are beyond that point in time.  */
+    if (block.GetBlockTime() < FORK_TIME_SAME_CHAIN_ID && params.fStrictChainId
+          && block.auxpow->parentBlock.GetChainId () == block.GetChainId ())
+        return error("%s : Aux POW parent has our chain ID", __func__);
 
     if (!block.auxpow->check(block.GetHash(), block.GetChainId(), params))
         return error("%s : AUX POW is not valid", __func__);
@@ -3444,6 +3468,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
     // Disallow legacy blocks after merge-mining start.
+    // FIXME: Get rid of this after the always-auxpow fork is active.
     const int nHeight = pindexPrev->nHeight+1;
     if (!Params().GetConsensus().AllowLegacyBlocks(nHeight) && block.IsLegacy())
         return state.DoS(100, error("%s : legacy block after auxpow start",
