@@ -120,6 +120,7 @@ testScripts = [
 
     # auxpow tests
     'getauxblock.py',
+    'always-auxpow.py',
 ]
 testScriptsExt = [
     'bip65-cltv.py',

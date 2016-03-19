@@ -137,7 +137,7 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         pblock->nTime = GetAdjustedTime();
         const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
-        const int32_t nChainId = chainparams.GetConsensus ().nAuxpowChainId;
+        //const int32_t nChainId = chainparams.GetConsensus ().nAuxpowChainId;
         // FIXME: Active version bits after the always-auxpow fork!
         //nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
         nVersion = 4;
@@ -294,7 +294,8 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
         UpdateTime(pblock, nVersion, chainparams.GetConsensus(), pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
-        pblock->nNonce         = 0;
+        if (!pblock->AlwaysAuxpowActive())
+            pblock->nNonce = 0;
         pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
         CValidationState state;
