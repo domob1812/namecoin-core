@@ -39,7 +39,7 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(*(CPureBlockHeader*)this);
 
-        if (this->IsAuxpow())
+        if (IsAuxpow())
         {
             if (ser_action.ForRead())
                 auxpow.reset (new CAuxPow());
@@ -50,9 +50,9 @@ public:
                Thus, allow writing with unset auxpow even if IsAuxpow() is true
                (as is always the case after the always-auxpow fork).  */
             if (auxpow)
-              READWRITE(*auxpow);
+                READWRITE(*auxpow);
             else
-              assert (!ser_action.ForRead());
+                assert (!ser_action.ForRead());
         } else if (ser_action.ForRead())
             auxpow.reset();
     }

@@ -122,6 +122,7 @@ BASE_SCRIPTS= [
 
     # auxpow tests
     'auxpow_mining.py',
+    'always-auxpow.py',
 ]
 
 EXTENDED_SCRIPTS = [
