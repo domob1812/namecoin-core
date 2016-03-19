@@ -2360,9 +2360,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // See BIP30 and http://r6.ca/blog/20120206T005236Z.html for more information.
     // This logic is not necessary for memory pool transactions, as AcceptToMemoryPool
     // already refuses previously-known transaction ids entirely.
-    // FIXME: Enable strict check after appropriate fork.
     bool fEnforceBIP30 = (!pindex->phashBlock) || // Enforce on CreateNewBlock invocations which don't have a hash.
-                          !(true);
+                          block.AlwaysAuxpowActive();
 
     // Once BIP34 activated it was not possible to create new duplicate coinbases and thus other than starting
     // with the 2 existing duplicate coinbase pairs, not possible to create overwriting txs.  But by the
@@ -2383,9 +2382,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
-    // Disable strict BIP16 checks until we do a softfork for it
-    // FIXME: Enable strict check in the future.
-    const bool fStrictPayToScriptHash = false;
+    // Strict BIP16 checks were enabled together with the always-active fork.
+    const bool fStrictPayToScriptHash = block.AlwaysAuxpowActive();
 
     unsigned int flags = fStrictPayToScriptHash ? SCRIPT_VERIFY_P2SH : SCRIPT_VERIFY_NONE;
 
@@ -3418,7 +3416,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
 
     // Enforce the temporary DB lock limit.
     // TODO: Remove with a hardfork in the future.
-    if (!CheckDbLockLimit(block))
+    if (!block.AlwaysAuxpowActive() && !CheckDbLockLimit(block))
         return state.DoS(100, error("%s : DB lock limit failed", __func__),
                          REJECT_INVALID, "bad-db-locks");
 
