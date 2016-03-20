@@ -150,9 +150,6 @@ CNameMemPool::removeConflicts (const CTransaction& tx,
 {
   AssertLockHeld (pool.cs);
 
-  if (!tx.IsNamecoin ())
-    return;
-
   BOOST_FOREACH (const CTxOut& txout, tx.vout)
     {
       const CNameScript nameOp(txout.scriptPubKey);
@@ -293,9 +290,6 @@ CNameMemPool::checkTx (const CTransaction& tx) const
 {
   AssertLockHeld (pool.cs);
 
-  if (!tx.IsNamecoin ())
-    return true;
-
   /* In principle, multiple name_updates could be performed within the
      mempool at once (building upon each other).  This is disallowed, though,
      since the current mempool implementation does not like it.  (We keep
@@ -353,6 +347,7 @@ CheckNameTransaction (const CTransaction& tx, unsigned nHeight,
   const std::string strTxid = tx.GetHash ().GetHex ();
   const char* txid = strTxid.c_str ();
   const bool fMempool = (flags & SCRIPT_VERIFY_NAMES_MEMPOOL);
+  const bool fStrictVersion = (flags & SCRIPT_VERIFY_STRICT_NAMECOIN_VERSION);
 
   /* Ignore historic bugs.  */
   CChainParams::BugType type;
@@ -404,23 +399,33 @@ CheckNameTransaction (const CTransaction& tx, unsigned nHeight,
      If that's the case, all is fine.  For a Namecoin tx instead, there
      should be at least an output (for NAME_NEW, no inputs are expected).  */
 
-  if (!tx.IsNamecoin ())
+  if (fStrictVersion)
     {
-      if (nameIn != -1)
-        return state.Invalid (error ("%s: non-Namecoin tx %s has name inputs",
-                                     __func__, txid));
-      if (nameOut != -1)
-        return state.Invalid (error ("%s: non-Namecoin tx %s at height %u"
-                                     " has name outputs",
-                                     __func__, txid, nHeight));
+      if (!tx.IsNamecoin ())
+        {
+          if (nameIn != -1)
+            return state.Invalid (error ("%s: non-Namecoin tx %s has name inputs",
+                                         __func__, txid));
+          if (nameOut != -1)
+            return state.Invalid (error ("%s: non-Namecoin tx %s at height %u"
+                                         " has name outputs",
+                                         __func__, txid, nHeight));
 
-      return true;
+          return true;
+        }
+      assert (tx.IsNamecoin ());
+    }
+  else
+    {
+      if (nameIn == -1 && nameOut == -1)
+        return true;
+      /* Tx is assumed to be Namecoin for further checks.  */
     }
 
-  assert (tx.IsNamecoin ());
   if (nameOut == -1)
     return state.Invalid (error ("%s: Namecoin tx %s has no name outputs",
                                  __func__, txid));
+  assert (nameOut != -1);
 
   /* Reject "greedy names".  */
   const Consensus::Params& params = Params ().GetConsensus ();
@@ -565,15 +570,8 @@ ApplyNameTransaction (const CTransaction& tx, unsigned nHeight,
       return;
     }
 
-  /* This check must be done *after* the historic bug fixing above!  Some
-     of the names that must be handled above are actually produced by
-     transactions *not* marked as Namecoin tx.  */
-  if (!tx.IsNamecoin ())
-    return;
-
   /* Changes are encoded in the outputs.  We don't have to do any checks,
      so simply apply all these.  */
-
   for (unsigned i = 0; i < tx.vout.size (); ++i)
     {
       const CNameScript op(tx.vout[i].scriptPubKey);

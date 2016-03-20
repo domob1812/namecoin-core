@@ -264,6 +264,8 @@ public:
         return (vin.size() == 1 && vin[0].prevout.IsNull());
     }
 
+    // FIXME: Get rid of this once the fork is passed that lifts the restriction
+    // on Namecoin transactions only with NMC version.
     bool IsNamecoin() const
     {
         return nVersion == NAMECOIN_VERSION;

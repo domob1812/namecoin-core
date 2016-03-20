@@ -247,38 +247,36 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
             /* Check maturity of NAME_NEW for NAME_FIRSTUPDATE transactions.
                The mempool allows updates of immature new's, so this is really
                a necessary condition.  */
-            if (tx.IsNamecoin ()) {
-                int nameOut = -1;
-                CNameScript nameOpOut;
-                for (unsigned i = 0; i < tx.vout.size(); ++i) {
-                    const CNameScript op(tx.vout[i].scriptPubKey);
-                    if (op.isNameOp()) {
-                        nameOut = i;
-                        nameOpOut = op;
-                        break;
-                    }
+            int nameOut = -1;
+            CNameScript nameOpOut;
+            for (unsigned i = 0; i < tx.vout.size(); ++i) {
+                const CNameScript op(tx.vout[i].scriptPubKey);
+                if (op.isNameOp()) {
+                    nameOut = i;
+                    nameOpOut = op;
+                    break;
                 }
+            }
+            bool immatureNew = false;
+            if (nameOut != -1 && nameOpOut.getNameOp() == OP_NAME_FIRSTUPDATE) {
+                for (unsigned i = 0; i < tx.vin.size(); ++i) {
+                    const COutPoint& prevout = tx.vin[i].prevout;
+                    CCoins coins;
+                    if (!pcoinsTip->GetCoins(prevout.hash, coins))
+                        continue;
 
-                bool immatureNew = false;
-                if (nameOut != -1 && nameOpOut.getNameOp() == OP_NAME_FIRSTUPDATE) {
-                    for (unsigned i = 0; i < tx.vin.size(); ++i) {
-                        const COutPoint& prevout = tx.vin[i].prevout;
-                        CCoins coins;
-                        if (!pcoinsTip->GetCoins(prevout.hash, coins))
-                            continue;
-
-                        const CNameScript op(coins.vout[prevout.n].scriptPubKey);
-                        if (op.isNameOp() && op.getNameOp() == OP_NAME_NEW) {
-                            const unsigned newHeight = pindexPrev->nHeight + 1;
-                            if (coins.nHeight + MIN_FIRSTUPDATE_DEPTH > newHeight)
-                                immatureNew = true;
+                    const CNameScript op(coins.vout[prevout.n].scriptPubKey);
+                    if (op.isNameOp() && op.getNameOp() == OP_NAME_NEW) {
+                        const unsigned newHeight = pindexPrev->nHeight + 1;
+                        if (coins.nHeight + MIN_FIRSTUPDATE_DEPTH > newHeight) {
+                            immatureNew = true;
+                            break;
                         }
                     }
                 }
-
-                if (immatureNew)
-                    continue;
             }
+            if (immatureNew)
+                continue;
 
             CAmount nTxFees = iter->GetFee();
             // Added

@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2015 Daniel Kraft
+// Copyright (c) 2014-2016 Daniel Kraft
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -534,27 +534,33 @@ BOOST_AUTO_TEST_CASE (name_tx_verification)
   mtx.vout.push_back (CTxOut (COIN, addr));
   const CTransaction baseTx(mtx);
 
+  const unsigned strictVersion = SCRIPT_VERIFY_STRICT_NAMECOIN_VERSION;
+
   /* Non-name tx should be non-Namecoin version.  */
+  BOOST_CHECK (CheckNameTransaction (baseTx, 200000, view, state,
+                                     strictVersion));
   BOOST_CHECK (CheckNameTransaction (baseTx, 200000, view, state, 0));
   mtx.SetNamecoin ();
-  BOOST_CHECK (!CheckNameTransaction (mtx, 200000, view, state, 0));
+  BOOST_CHECK (!CheckNameTransaction (mtx, 200000, view, state, strictVersion));
+  BOOST_CHECK (CheckNameTransaction (mtx, 200000, view, state, 0));
 
   /* Name tx should be Namecoin version.  */
   mtx = CMutableTransaction (baseTx);
-  mtx.vin.push_back (CTxIn (COutPoint (inNew, 0)));
-  BOOST_CHECK (!CheckNameTransaction (mtx, 200000, view, state, 0));
+  mtx.vout.push_back (CTxOut (COIN, scrNew));
+  BOOST_CHECK (!CheckNameTransaction (mtx, 200000, view, state, strictVersion));
+  BOOST_CHECK (CheckNameTransaction (mtx, 200000, view, state, 0));
   mtx.SetNamecoin ();
-  mtx.vin.push_back (CTxIn (COutPoint (inUpdate, 0)));
-  BOOST_CHECK (!CheckNameTransaction (mtx, 200000, view, state, 0));
+  BOOST_CHECK (CheckNameTransaction (mtx, 200000, view, state, strictVersion));
+  BOOST_CHECK (CheckNameTransaction (mtx, 200000, view, state, 0));
 
   /* Duplicate name outs are not allowed.  */
   mtx = CMutableTransaction (baseTx);
   mtx.vout.push_back (CTxOut (COIN, scrNew));
-  BOOST_CHECK (!CheckNameTransaction (mtx, 200000, view, state, 0));
+  BOOST_CHECK (!CheckNameTransaction (mtx, 200000, view, state, strictVersion));
   mtx.SetNamecoin ();
-  BOOST_CHECK (CheckNameTransaction (mtx, 200000, view, state, 0));
+  BOOST_CHECK (CheckNameTransaction (mtx, 200000, view, state, strictVersion));
   mtx.vout.push_back (CTxOut (COIN, scrNew));
-  BOOST_CHECK (!CheckNameTransaction (mtx, 200000, view, state, 0));
+  BOOST_CHECK (!CheckNameTransaction (mtx, 200000, view, state, strictVersion));
 
   /* ************************** */
   /* Test NAME_NEW validation.  */

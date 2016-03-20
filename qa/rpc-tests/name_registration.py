@@ -186,5 +186,28 @@ class NameRegistrationTest (NameTestFramework):
     self.checkName (1, "node-1", "reregistered", 23, False)
     self.checkNameHistory (1, "node-1", ["x" * 520, "reregistered"])
 
+    # Verify name ops around the always-auxpow fork point, just to be sure.
+    # FIXME: Set final value here.
+    forktime = 1483225200
+
+    self.nodes[0].setmocktime (forktime - 1)
+    self.nodes[1].setmocktime (forktime)
+    self.nodes[2].setmocktime (forktime)
+    self.nodes[3].setmocktime (forktime)
+
+    newA = self.nodes[0].name_new ("name-1")
+    newB = self.nodes[1].name_new ("name-2")
+    self.generate (0, 15)
+    self.firstupdateName (0, "name-1", newA, "a")
+    self.firstupdateName (1, "name-2", newB, "b")
+    self.generate (1, 1)
+    self.checkName (2, "name-1", "a", None, False)
+    self.checkName (2, "name-2", "b", None, False)
+    self.nodes[0].name_update ("name-1", "aa")
+    self.nodes[1].name_update ("name-2", "bb")
+    self.generate (0, 1)
+    self.checkName (2, "name-1", "aa", None, False)
+    self.checkName (2, "name-2", "bb", None, False)
+
 if __name__ == '__main__':
   NameRegistrationTest ().main ()

@@ -85,8 +85,6 @@ name_list (const UniValue& params, bool fHelp)
                  pwalletMain->mapWallet)
     {
       const CWalletTx& tx = item.second;
-      if (!tx.IsNamecoin ())
-        continue;
 
       CNameScript nameOp;
       int nOut = -1;

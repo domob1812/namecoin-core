@@ -90,6 +90,11 @@ enum
     // Perform name checks in "mempool" mode.  This allows / disallows
     // certain stuff (e. g., it allows immature spending of name_new's).
     SCRIPT_VERIFY_NAMES_MEMPOOL = (1U << 24),
+
+    // Enforce strict NamecoinVersion tx checks.
+    // FIXME: Get rid of this once the chain is beyond the
+    // always-auxpow fork and we no longer need to enforce those.
+    SCRIPT_VERIFY_STRICT_NAMECOIN_VERSION = (1U << 25),
 };
 
 bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError* serror);

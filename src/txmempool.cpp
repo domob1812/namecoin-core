@@ -46,19 +46,14 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction& _tx, const CAmount& _nFee,
     nModFeesWithAncestors = nFee;
     nSigOpCountWithAncestors = sigOpCount;
 
-    if (tx.IsNamecoin())
+    BOOST_FOREACH(const CTxOut& txout, tx.vout)
     {
-        BOOST_FOREACH(const CTxOut& txout, tx.vout)
-        {
-            const CNameScript curNameOp(txout.scriptPubKey);
-            if (!curNameOp.isNameOp())
-                continue;
+        const CNameScript curNameOp(txout.scriptPubKey);
+        if (!curNameOp.isNameOp())
+            continue;
 
-            assert(!nameOp.isNameOp());
-            nameOp = curNameOp;
-        }
-
-        assert(nameOp.isNameOp());
+        assert(!nameOp.isNameOp());
+        nameOp = curNameOp;
     }
 }
 

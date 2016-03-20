@@ -488,7 +488,7 @@ name_pending (const UniValue& params, bool fHelp)
        i != txHashes.end (); ++i)
     {
       CTransaction tx;
-      if (!mempool.lookup (*i, tx) || !tx.IsNamecoin ())
+      if (!mempool.lookup (*i, tx))
         continue;
 
       for (unsigned i = 0; i < tx.vout.size (); ++i)

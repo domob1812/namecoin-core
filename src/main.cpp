@@ -1375,7 +1375,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        if (!CheckInputs(tx, state, view, true, STANDARD_SCRIPT_VERIFY_FLAGS | SCRIPT_VERIFY_NAMES_MEMPOOL, true))
+        if (!CheckInputs(tx, state, view, true, STANDARD_SCRIPT_VERIFY_FLAGS | SCRIPT_VERIFY_NAMES_MEMPOOL | SCRIPT_VERIFY_STRICT_NAMECOIN_VERSION, true))
             return false; // state filled in by CheckInputs
 
         // Check again against just the consensus-critical mandatory script
@@ -1392,7 +1392,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         // not (yet) be valid in a block, namely premature NAME_FIRSTUPDATE's.
         // Thus add the mempool-flag here.
         const unsigned flags
-          = MANDATORY_SCRIPT_VERIFY_FLAGS | SCRIPT_VERIFY_NAMES_MEMPOOL;
+          = MANDATORY_SCRIPT_VERIFY_FLAGS | SCRIPT_VERIFY_NAMES_MEMPOOL | SCRIPT_VERIFY_STRICT_NAMECOIN_VERSION;
         if (!CheckInputs(tx, state, view, true, flags, true))
         {
             return error("%s: BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s, %s",
@@ -2398,6 +2398,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (block.GetBaseVersion() >= 4 && IsSuperMajority(4, pindex->pprev, chainparams.GetConsensus().nMajorityEnforceBlockUpgrade, chainparams.GetConsensus())) {
         flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
     }
+
+    if (!block.AlwaysAuxpowActive())
+        flags |= SCRIPT_VERIFY_STRICT_NAMECOIN_VERSION;
 
     int64_t nTime2 = GetTimeMicros(); nTimeForks += nTime2 - nTime1;
     LogPrint("bench", "    - Fork checks: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1), nTimeForks * 0.000001);
