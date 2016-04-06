@@ -297,14 +297,14 @@ void BitcoinGUI::createActions()
     historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
     tabGroup->addAction(historyAction);
 
-    manageNamesAction = new QAction(platformStyle->SingleColorIcon(":/icons/bitcoin"), tr("&Manage Names"), this);
+    manageNamesAction = new QAction(QIcon(":/icons/bitcoin"), tr("&Manage Names"), this);
     manageNamesAction->setStatusTip(tr("Manage names registered via Namecoin"));
     manageNamesAction->setToolTip(manageNamesAction->statusTip());
     manageNamesAction->setCheckable(true);
     manageNamesAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
     tabGroup->addAction(manageNamesAction);
 
-    manageNamesMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/bitcoin"), manageNamesAction->text(), this);
+    manageNamesMenuAction = new QAction(QIcon(":/icons/bitcoin"), manageNamesAction->text(), this);
     manageNamesMenuAction->setStatusTip(manageNamesAction->statusTip());
     manageNamesMenuAction->setToolTip(manageNamesMenuAction->statusTip());
 
