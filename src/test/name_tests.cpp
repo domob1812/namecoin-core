@@ -932,8 +932,11 @@ BOOST_AUTO_TEST_CASE (name_mempool)
   BOOST_CHECK (mempool.checkNameOps (txUpd1) && mempool.checkNameOps (txUpd2));
 
   /* Add name_new's with "stealing" check.  */
-  const CTxMemPoolEntry entryNew1(txNew1, 0, 0, 0, 100, true, COIN, false, 1);
-  const CTxMemPoolEntry entryNew2(txNew2, 0, 0, 0, 100, true, COIN, false, 1);
+  const LockPoints lp;
+  const CTxMemPoolEntry entryNew1(txNew1, 0, 0, 0, 100, true,
+                                  COIN, false, 1, lp);
+  const CTxMemPoolEntry entryNew2(txNew2, 0, 0, 0, 100, true,
+                                  COIN, false, 1, lp);
   BOOST_CHECK (entryNew1.isNameNew () && entryNew2.isNameNew ());
   BOOST_CHECK (entryNew1.getNameNewHash () == vchHash1
                 && entryNew2.getNameNewHash () == vchHash2);
@@ -943,7 +946,8 @@ BOOST_AUTO_TEST_CASE (name_mempool)
   BOOST_CHECK (mempool.checkNameOps (txNew1) && mempool.checkNameOps (txNew2));
 
   /* Add a name registration.  */
-  const CTxMemPoolEntry entryReg(txReg1, 0, 0, 0, 100, true, COIN, false, 1);
+  const CTxMemPoolEntry entryReg(txReg1, 0, 0, 0, 100, true,
+                                 COIN, false, 1, lp);
   BOOST_CHECK (entryReg.isNameRegistration () && !entryReg.isNameUpdate ());
   BOOST_CHECK (entryReg.getName () == nameReg);
   mempool.addUnchecked (entryReg.GetTx ().GetHash (), entryReg);
@@ -952,7 +956,8 @@ BOOST_AUTO_TEST_CASE (name_mempool)
   BOOST_CHECK (!mempool.checkNameOps (txReg2) && mempool.checkNameOps (txUpd1));
 
   /* Add a name update.  */
-  const CTxMemPoolEntry entryUpd(txUpd1, 0, 0, 0, 100, true, COIN, false, 1);
+  const CTxMemPoolEntry entryUpd(txUpd1, 0, 0, 0, 100, true,
+                                 COIN, false, 1, lp);
   BOOST_CHECK (!entryUpd.isNameRegistration () && entryUpd.isNameUpdate ());
   BOOST_CHECK (entryUpd.getName () == nameUpd);
   mempool.addUnchecked (entryUpd.GetTx ().GetHash (), entryUpd);
