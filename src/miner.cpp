@@ -79,15 +79,6 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
 
-    /* Initialise the block version.  */
-    const int32_t nChainId = chainparams.GetConsensus ().nAuxpowChainId;
-    pblock->SetBaseVersion(CBlockHeader::CURRENT_VERSION, nChainId);
-
-    // -regtest only: allow overriding block.nVersion with
-    // -blockversion=N to test forking scenarios
-    if (chainparams.MineBlocksOnDemand())
-        pblock->SetBaseVersion(GetArg("-blockversion", pblock->GetBaseVersion()), nChainId);
-
     // Create coinbase tx
     CMutableTransaction txNew;
     txNew.vin.resize(1);
@@ -140,6 +131,16 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
         const int nHeight = pindexPrev->nHeight + 1;
         pblock->nTime = GetAdjustedTime();
         const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
+
+        const int32_t nChainId = chainparams.GetConsensus ().nAuxpowChainId;
+        // FIXME: Active version bits after the always-auxpow fork!
+        //const int32_t nVersion = ComputeBlockVersion(pindexPrev, chainparams.getConsensus());
+        const int32_t nVersion = 4;
+        pblock->SetBaseVersion(nVersion, nChainId);
+        // -regtest only: allow overriding block.nVersion with
+        // -blockversion=N to test forking scenarios
+        if (chainparams.MineBlocksOnDemand())
+            pblock->SetBaseVersion(GetArg("-blockversion", pblock->GetBaseVersion()), nChainId);
 
         int64_t nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST)
                                 ? nMedianTimePast
