@@ -18,7 +18,7 @@
 #include <QMenu>
 
 ManageNamesPage::ManageNamesPage(const PlatformStyle *platformStyle, QWidget *parent) :
-    QDialog(parent),
+    QWidget(parent),
     platformStyle(platformStyle),
     ui(new Ui::ManageNamesPage),
     model(0),
@@ -194,7 +194,7 @@ bool ManageNamesPage::eventFilter(QObject *object, QEvent *event)
             ui->configureNameButton->setDefault(true);
         }
     }
-    return QDialog::eventFilter(object, event);
+    return QWidget::eventFilter(object, event);
 }
 
 void ManageNamesPage::selectionChanged()

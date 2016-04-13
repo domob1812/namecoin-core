@@ -10,6 +10,8 @@
 #include "script/script.h"
 #include "serialize.h"
 
+#include <univalue.h>
+
 #include <map>
 #include <set>
 
@@ -503,5 +505,11 @@ struct NameNewReturn
 /* Here is where we store our pending name_firstupdates (see above)
    while we're waiting for name_new to confirm. */
 extern std::map<std::string, NameNewReturn > pendingNameFirstUpdate;
+
+/* We need the following functions declared for use in the QT UI */
+// in wallet/rpcwallet.cpp
+extern UniValue name_list(const UniValue& params, bool fHelp);
+// in rpc/names.cpp
+extern UniValue name_show(const UniValue& params, bool fHelp);
 
 #endif // H_BITCOIN_NAMES_COMMON

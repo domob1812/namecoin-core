@@ -3,7 +3,7 @@
 
 #include "platformstyle.h"
 
-#include <QDialog>
+#include <QWidget>
 
 class WalletModel;
 class NameTableModel;
@@ -21,7 +21,7 @@ class QModelIndex;
 QT_END_NAMESPACE
 
 /** Page for managing names */
-class ManageNamesPage : public QDialog
+class ManageNamesPage : public QWidget
 {
     Q_OBJECT
 
