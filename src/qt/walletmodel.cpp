@@ -901,8 +901,10 @@ QString WalletModel::nameUpdate(const QString &name, const QString &data, const 
         res = name_update (params, false);
     }
     catch (const UniValue& e) {
-        LogPrintf ("name_update error: %s\n", e.getValStr().c_str());
-        return tr("Error!");
+        UniValue message = find_value( e, "message");
+        std::string errorStr = message.get_str();
+        LogPrintf ("name_update error: %s\n", errorStr.c_str());
+        return QString::fromStdString(errorStr);
     }
     return tr ("");
 }

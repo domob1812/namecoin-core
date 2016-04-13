@@ -31,17 +31,20 @@ ManageNamesPage::ManageNamesPage(const PlatformStyle *platformStyle, QWidget *pa
     QAction *copyNameAction = new QAction(tr("Copy &Name"), this);
     QAction *copyValueAction = new QAction(tr("Copy &Value"), this);
     QAction *configureNameAction = new QAction(tr("&Configure Name..."), this);
+    QAction *renewNameAction = new QAction(tr("&Renew Name"), this);
 
     // Build context menu
     contextMenu = new QMenu();
     contextMenu->addAction(copyNameAction);
     contextMenu->addAction(copyValueAction);
     contextMenu->addAction(configureNameAction);
+    contextMenu->addAction(renewNameAction);
 
     // Connect signals for context menu actions
     connect(copyNameAction, SIGNAL(triggered()), this, SLOT(onCopyNameAction()));
     connect(copyValueAction, SIGNAL(triggered()), this, SLOT(onCopyValueAction()));
     connect(configureNameAction, SIGNAL(triggered()), this, SLOT(on_configureNameButton_clicked()));
+    connect(renewNameAction, SIGNAL(triggered()), this, SLOT(on_renewNameButton_clicked()));
 
     connect(ui->tableView, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
     connect(ui->tableView, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(on_configureNameButton_clicked()));
@@ -201,7 +204,9 @@ void ManageNamesPage::selectionChanged()
     if(!table->selectionModel())
         return;
 
-    ui->configureNameButton->setEnabled(table->selectionModel()->hasSelection());
+    bool state = table->selectionModel()->hasSelection();
+    ui->configureNameButton->setEnabled(state);
+    ui->renewNameButton->setEnabled(state);
 }
 
 void ManageNamesPage::contextualMenu(const QPoint &point)
@@ -245,6 +250,48 @@ void ManageNamesPage::on_configureNameButton_clicked()
         // name_firstupdate could have been sent, while the user was editing the value
         if (pendingNameFirstUpdate.count(strName) != 0)
             model->updateEntry(name, dlg.getReturnData(), NameTableEntry::NAME_NEW, CT_UPDATED);
+    }
+}
+
+void
+ManageNamesPage::on_renewNameButton_clicked ()
+{
+    if(!ui->tableView->selectionModel())
+        return;
+    QModelIndexList indexes = ui->tableView->selectionModel()->selectedRows(NameTableModel::Name);
+    if(indexes.isEmpty())
+        return;
+
+    QModelIndex index = indexes.at(0);
+
+    QString name = index.data(Qt::EditRole).toString();
+    QString value = index.sibling(index.row(), NameTableModel::Value).data(Qt::EditRole).toString();
+
+    // TODO: Warn if the "expires in" value is still high
+    const QString msg
+        = tr ("Are you sure you want to renew the name <b>%1</b>?")
+        .arg (GUIUtil::HtmlEscape (name));
+    const QString title = tr ("Confirm name renewal");
+
+    QMessageBox::StandardButton res;
+    res = QMessageBox::question (this, title, msg,
+                                 QMessageBox::Yes | QMessageBox::Cancel,
+                                 QMessageBox::Cancel);
+    if (res != QMessageBox::Yes)
+        return;
+
+    WalletModel::UnlockContext ctx(walletModel->requestUnlock ());
+    if (!ctx.isValid ())
+        return;
+
+    const QString err_msg = walletModel->nameUpdate(name, value, "");
+
+    if (!err_msg.isEmpty())
+    {
+        if (err_msg == "ABORTED")
+            return;
+
+        QMessageBox::critical(this, tr("Name update error"), err_msg);
     }
 }
 
