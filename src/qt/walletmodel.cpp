@@ -732,11 +732,6 @@ NameNewReturn WalletModel::nameNew(const QString &name)
     std::vector<UniValue> values;
     UniValue res, txid, rand;
 
-    // uint64_t rand;
-    // uint160 hash;
-    // QString address;
-    // std::vector<unsigned char> vchName;
-
     NameNewReturn retval;
 
     params.push_back (Pair("name", strName));
@@ -751,9 +746,6 @@ NameNewReturn WalletModel::nameNew(const QString &name)
         return retval;
     }
 
-    // NOTE: this ok var seems to be used as a temporary
-    // 'did this succeed' check because the UI code used to
-    // do all the checks/wallet stuff itself
     retval.ok = true;
 
     values = res.getValues ();
@@ -838,7 +830,10 @@ void WalletModel::sendPendingNameFirstUpdates()
             res1 = gettransaction( params1, false);
         }
         catch (const UniValue& e) {
-            LogPrintf ("gettransaction error for name %s: %s\n", strName.c_str(), e.getValStr().c_str());
+            UniValue message = find_value( e, "message");
+            std::string errorStr = message.get_str();
+            LogPrintf ("gettransaction error for name %s: %s\n",
+                       strName.c_str(), errorStr.c_str());
             ++i;
             continue;
         }
@@ -872,7 +867,9 @@ void WalletModel::sendPendingNameFirstUpdates()
             res2 = name_firstupdate (params2, false);
         }
         catch (const UniValue& e) {
-            LogPrintf ("name_firstupdate error: %s\n", e.getValStr().c_str());
+            UniValue message = find_value( e, "message");
+            std::string errorStr = message.get_str();
+            LogPrintf ("name_firstupdate error: %s\n", errorStr.c_str());
             ++i;
             continue;
         }
