@@ -743,9 +743,10 @@ NameNewReturn WalletModel::nameNew(const QString &name)
     try {
         res = name_new (params, false);
     } catch (const UniValue& e) {
-        std::string strErr = e.getValStr();
-        LogPrintf ("nameNew Error: %s\n", strErr.c_str());
-        retval.err_msg = strErr;
+        UniValue message = find_value( e, "message");
+        std::string errorStr = message.get_str();
+        LogPrintf ("nameNew error: %s\n", errorStr.c_str());
+        retval.err_msg = errorStr;
         retval.ok = false;
         return retval;
     }
