@@ -83,31 +83,18 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     {
         bool involvesWatchAddress = false;
         isminetype fAllFromMe = ISMINE_SPENDABLE;
-        CAmount nCarriedOverCoin = 0;
         BOOST_FOREACH(const CTxIn& txin, wtx.vin)
         {
             isminetype mine = wallet->IsMine(txin);
-            if (mine != ISMINE_SPENDABLE)
-            {
-                // Check whether transaction input is name_* operation - in this case consider it ours
-                CTransaction txPrev;
-                uint256 hash;
-                CTxDestination address;
-                if (GetTransaction(txin.prevout.hash, txPrev, Params().GetConsensus(), hash) &&
-                        txin.prevout.n < txPrev.vout.size() &&
-                        //hooks->ExtractAddress(txPrev.vout[txin.prevout.n].scriptPubKey, address)
-                        ExtractDestination(txPrev.vout[txin.prevout.n].scriptPubKey, address)
-                   )
-                {
-                    // This is our name transaction
-                    // Accumulate the coin carried from name_new, because it is not actually spent
-                    nCarriedOverCoin += txPrev.vout[txin.prevout.n].nValue;
-                    mine = ISMINE_SPENDABLE;
-                }
-            }
             if(mine & ISMINE_WATCH_ONLY) involvesWatchAddress = true;
             if(fAllFromMe > mine) fAllFromMe = mine;
         }
+
+        // if we find a name script we put it here. display in transaction
+        // records hand off the boolean, foundNameOp
+        bool foundNameOp = false;
+        CNameScript nameScript;
+        std::string nameAddress;
 
         isminetype fAllToMe = ISMINE_SPENDABLE;
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
@@ -115,6 +102,15 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             isminetype mine = wallet->IsMine(txout);
             if(mine & ISMINE_WATCH_ONLY) involvesWatchAddress = true;
             if(fAllToMe > mine) fAllToMe = mine;
+
+            // check txout for nameop
+            const CNameScript cur(txout.scriptPubKey);
+            if(cur.isNameOp ())
+            {
+                foundNameOp = true;
+                nameScript = cur;
+                nameAddress = CBitcoinAddress(CScriptID(txout.scriptPubKey)).ToString();
+            }
         }
 
         if (fAllFromMe && fAllToMe)
@@ -122,8 +118,23 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             // Payment to self
             CAmount nChange = wtx.GetChange();
 
-            parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, "",
-                            -(nDebit - nChange), nCredit - nChange));
+            if(foundNameOp)
+            {
+                std::string opName = GetOpName(nameScript.getNameOp());
+                std::string description = nameAddress + " " + opName.substr(3);
+
+                if(nameScript.isAnyUpdate())
+                    description += " " + ValtypeToString(nameScript.getOpName());
+
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::NameOp, description,
+                                               -(nDebit - nChange), nCredit - nChange));
+            }
+            else
+            {
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, "",
+                                               -(nDebit - nChange), nCredit - nChange));
+            }
+
             parts.last().involvesWatchAddress = involvesWatchAddress;   // maybe pass to TransactionRecord as constructor argument
         }
         else if (fAllFromMe)
@@ -131,7 +142,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             //
             // Debit
             //
-            CAmount nTxFee = nDebit - (wtx.GetValueOut() - nCarriedOverCoin);
+            CAmount nTxFee = nDebit - wtx.GetValueOut();
 
             for (unsigned int nOut = 0; nOut < wtx.vout.size(); nOut++)
             {
@@ -147,39 +158,12 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     continue;
                 }
 
-                CAmount nValue = txout.nValue;
                 CTxDestination address;
-                CBitcoinAddress addrParsed;
-
                 if (ExtractDestination(txout.scriptPubKey, address))
                 {
                     // Sent to Bitcoin Address
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
-                }
-                //else if (hooks->ExtractAddress(txout.scriptPubKey, address))
-                else if (ExtractDestination(txout.scriptPubKey, address) && addrParsed.Set(address))
-                {
-                    sub.type = TransactionRecord::NameOp;
-                    sub.address = addrParsed.ToString();
-
-                    // Add carried coin (from name_new)
-                    if (nCarriedOverCoin > 0)
-                    {
-                        // Note: we subtract nCarriedOverCoin equally from all name operations,
-                        // until it becomes zero. It may fail for complex transactions, which
-                        // update multiple names simultaneously (standard client never creates such transactions).
-                        if (nValue >= nCarriedOverCoin)
-                        {
-                            nValue -= nCarriedOverCoin;
-                            nCarriedOverCoin = 0;
-                        }
-                        else
-                        {
-                            nCarriedOverCoin -= nValue;
-                            nValue = 0;
-                        }
-                    }
                 }
                 else
                 {
@@ -188,6 +172,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     sub.address = mapValue["to"];
                 }
 
+                CAmount nValue = txout.nValue;
                 /* Add fee to first output */
                 if (nTxFee > 0)
                 {
