@@ -105,11 +105,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
             // check txout for nameop
             const CNameScript cur(txout.scriptPubKey);
+            CTxDestination address;
             if(cur.isNameOp ())
             {
                 foundNameOp = true;
                 nameScript = cur;
-                nameAddress = CBitcoinAddress(CScriptID(txout.scriptPubKey)).ToString();
+                ExtractDestination(txout.scriptPubKey, address);
+                nameAddress = CBitcoinAddress(address).ToString();
             }
         }
 
