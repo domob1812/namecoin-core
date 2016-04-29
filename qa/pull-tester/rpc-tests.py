@@ -74,7 +74,8 @@ if EXEEXT == ".exe" and "-win" not in opts:
 
 #Tests
 testScripts = [
-    'bip68-112-113-p2p.py',
+    # FIXME: Enable once BIP9 is live for Namecoin.
+    #'bip68-112-113-p2p.py',
     'wallet.py',
     'listtransactions.py',
     'receivedby.py',
