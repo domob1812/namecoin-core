@@ -6,7 +6,7 @@
 # General code for Namecoin tests.
 
 from test_framework import BitcoinTestFramework
-from util import assert_equal, sync_blocks, sync_mempools
+from util import *
 
 class NameTestFramework (BitcoinTestFramework):
 
@@ -115,3 +115,10 @@ class NameTestFramework (BitcoinTestFramework):
     tx = signed['hex']
     
     return self.nodes[nameFrom].sendrawtransaction (tx)
+
+  def setupNodesWithArgs (self, extraArgs):
+    enable_mocktime ()
+    return start_nodes (len (extraArgs), self.options.tmpdir, extraArgs)
+
+  def setup_nodes (self):
+    return self.setupNodesWithArgs ([[]] * 4)

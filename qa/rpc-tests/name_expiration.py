@@ -27,8 +27,7 @@ class NameExpirationTest (NameTestFramework):
       assert txo is None
 
   def setup_nodes(self):
-    args = ["-debug=names"]
-    return start_nodes(4, self.options.tmpdir, [args] * 4)
+    return self.setupNodesWithArgs ([["-debug=names"]] * 4)
 
   def run_test (self):
     NameTestFramework.run_test (self)
