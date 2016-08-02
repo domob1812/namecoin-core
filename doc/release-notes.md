@@ -135,6 +135,8 @@ Existing wallets will still use traditional key generation.
 Backups of HD wallets, regardless of when they have been created, can
 therefore be used to re-generate all possible private keys, even the
 ones which haven't already been generated during the time of the backup.
+**Attention:** Encrypting the wallet will create a new seed which requires
+a new backup!
 
 HD key generation for new wallets can be disabled by `-usehd=0`. Keep in
 mind that this flag only has affect on newly created wallets.
@@ -359,6 +361,7 @@ git merge commit are mentioned.
 - #8149 `d612837` Testnet-only segregated witness (sipa)
 - #8305 `3730393` Improve handling of unconnecting headers (sdaftuar)
 - #8363 `fca1a41` Rename "block cost" to "block weight" (sdaftuar)
+- #8381 `f84ee3d` Make witness v0 outputs non-standard (jl2012)
 
 ### P2P protocol and network code
 
@@ -405,6 +408,7 @@ git merge commit are mentioned.
 - #8312 `ca40ef6` Fix mempool DoS vulnerability from malleated transactions (sdaftuar)
 - #7180 `16ccb74` Account for `sendheaders` `verack` messages (laanwj)
 - #8102 `425278d` Bugfix: use global ::fRelayTxes instead of CNode in version send (sipa)
+- #8408 `b7e2011` Prevent fingerprinting, disk-DoS with compact blocks (sdaftuar)
 
 ### Build system
 
@@ -448,6 +452,8 @@ git merge commit are mentioned.
 - #8310 `6ae20df` Require boost for bench (theuni)
 - #8315 `2e51590` Don't require sudo for Linux (theuni)
 - #8314 `67caef6` Fix pkg-config issues for 0.13 (theuni)
+- #8373 `1fe7f40` Fix OSX non-deterministic dmg (theuni)
+- #8358 `cfd1280` Gbuild: Set memory explicitly (default is too low) (MarcoFalke)
 
 ### GUI
 
@@ -491,6 +497,7 @@ git merge commit are mentioned.
 - #7707 `a914968` UI support for abandoned transactions (jonasschnelli)
 - #8207 `f7a403b` Add a link to the Bitcoin-Core repository and website to the About Dialog (MarcoFalke)
 - #8281 `6a87eb0` Remove client name from debug window (laanwj)
+- #8407 `45eba4b` Add dbcache migration path (jonasschnelli)
 
 ### Wallet
 
@@ -521,6 +528,10 @@ git merge commit are mentioned.
 - #8324 `bc94b87` Keep HD seed during salvagewallet (jonasschnelli)
 - #8323 `238300b` Add HD keypath to CKeyMetadata, report metadata in validateaddress (jonasschnelli)
 - #8367 `3b38a6a` Ensure <0.13 clients can't open HD wallets (jonasschnelli)
+- #8378 `ebea651` Move SetMinVersion for FEATURE_HD to SetHDMasterKey (pstratem)
+- #8390 `73adfe3` Correct hdmasterkeyid/masterkeyid name confusion (jonasschnelli)
+- #8206 `18b8ee1` Add HD xpriv to dumpwallet (jonasschnelli)
+- #8389 `c3c82c4` Create a new HD seed after encrypting the wallet (jonasschnelli)
 
 ### Tests and QA
 
@@ -614,6 +625,7 @@ git merge commit are mentioned.
 - #7600 `66db2d6` Select transactions using feerate-with-ancestors (sdaftuar)
 - #8295 `f5660d3` Mining-related fixups for 0.13.0 (sdaftuar)
 - #7796 `536b75e` Add support for negative fee rates, fixes `prioritizetransaction` (MarcoFalke)
+- #8362 `86edc20` Scale legacy sigop count in CreateNewBlock (sdaftuar)
 
 ### Documentation and miscellaneous
 
@@ -680,6 +692,7 @@ git merge commit are mentioned.
 - #7934 `f17032f` Improve rolling bloom filter performance and benchmark (sipa)
 - #8004 `2efe38b` signal handling: fReopenDebugLog and fRequestShutdown should be type sig_atomic_t (catilac)
 - #7713 `f6598df` Fixes for verify-commits script (petertodd)
+- #8412 `8360d5b` libconsensus: Expose a flag for BIP112 (jtimon)
 
 Credits
 =======
@@ -725,6 +738,7 @@ Thanks to everyone who directly contributed to this release:
 - Gregory Sanders
 - instagibbs
 - James O'Beirne
+- Jannes Faber
 - Jarret Dyrbye
 - Jeremy Rand
 - jloughry
