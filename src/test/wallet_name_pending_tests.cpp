@@ -7,6 +7,7 @@
 #include "wallet/wallet.h"
 
 #include "test/test_bitcoin.h"
+#include "wallet/test/wallet_test_fixture.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -14,9 +15,7 @@
 
 using namespace std;
 
-extern CWallet* pwalletMain;
-
-BOOST_FIXTURE_TEST_SUITE(wallet_name_pending_tests, TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(wallet_name_pending_tests, WalletTestingSetup)
 
 BOOST_AUTO_TEST_CASE(wallet_name_pending_tests)
 {
