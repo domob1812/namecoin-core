@@ -591,7 +591,7 @@ class CAuxPow(CTransaction):
         self.parentBlock.deserialize(f)
 
     def serialize(self):
-        r = ""
+        r = b""
         r += super(CAuxPow, self).serialize()
         r += ser_uint256(self.hashBlock)
         r += ser_uint256_vector(self.vMerkleBranch)
