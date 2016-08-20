@@ -44,7 +44,10 @@ static const unsigned int STANDARD_SCRIPT_VERIFY_FLAGS = MANDATORY_SCRIPT_VERIFY
                                                          SCRIPT_VERIFY_CLEANSTACK |
                                                          SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY |
                                                          SCRIPT_VERIFY_CHECKSEQUENCEVERIFY |
-                                                         SCRIPT_VERIFY_LOW_S |
+                                                         // FIXME: This is temporarily disabled in Namecoin,
+                                                         // to support old nodes until we are able to upgrade
+                                                         // everyone with a name UI.
+                                                         //SCRIPT_VERIFY_LOW_S |
                                                          SCRIPT_VERIFY_WITNESS |
                                                          SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM;
 
