@@ -14,7 +14,7 @@
 #include <map>
 #include <vector>
 
-#include <QObject>
+#include <QWidget>
 
 class AddressTableModel;
 class OptionsModel;
@@ -98,12 +98,12 @@ public:
 };
 
 /** Interface to Bitcoin wallet from Qt view code. */
-class WalletModel : public QObject
+class WalletModel : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent = 0);
+    explicit WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QWidget *parent = 0);
     ~WalletModel();
 
     enum StatusCode // Returned by sendCoins
@@ -217,6 +217,8 @@ public:
 
     // Send pending name updates, if they are 12 blocks old
     void sendPendingNameFirstUpdates();
+
+    bool completePendingNameFirstUpdate(std::string name, std::string rand, std::string txid, std::string data, std::string toaddress);
 
     // Update name
     // Requires unlocked wallet; can throw exception instead of returning error

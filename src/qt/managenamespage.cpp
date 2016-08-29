@@ -105,9 +105,12 @@ void ManageNamesPage::on_submitNameButton_clicked()
     QString msg;
     if (name.startsWith("d/"))
         msg = tr("Are you sure you want to register domain name %1, which "
-                 "corresponds to domain %2?").arg(name).arg(name.mid(2) + ".bit");
+            "corresponds to domain %2? <br><br> NOTE: If your wallet is locked, you will be prompted "
+            "to unlock it in 12 blocks.").arg(name).arg(name.mid(2) + ".bit");
     else
-        msg = tr("Are you sure you want to register non-domain name %1?").arg(name);
+        msg = tr("Are you sure you want to register non-domain name %1? <br><br>"
+            "NOTE: If your wallet is locked, you will be prompted "
+            "to unlock it in 12 blocks.").arg(name);
 
     if (QMessageBox::Yes != QMessageBox::question(this, tr("Confirm name registration"),
           msg,

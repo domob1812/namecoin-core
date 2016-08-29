@@ -29,14 +29,15 @@
 #include <QDebug>
 #include <QSet>
 #include <QTimer>
+#include <QMessageBox>
 
 #include <univalue.h>
 #include <boost/foreach.hpp>
 
 #include <map>
 
-WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
-    QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
+WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QWidget *parent) :
+    QWidget(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
     transactionTableModel(0),
     nameTableModel(0),
     recentRequestsTableModel(0),
@@ -808,15 +809,39 @@ QString WalletModel::nameFirstUpdatePrepare(const QString& name, const QString& 
     return tr("");
 }
 
+bool WalletModel::completePendingNameFirstUpdate(std::string name, std::string rand, std::string txid, std::string data, std::string toaddress)
+{
+    UniValue params(UniValue::VOBJ);
+    UniValue res;
+
+    params.push_back (Pair("name", name));
+    params.push_back (Pair("rand", rand));
+    params.push_back (Pair("tx", txid));
+    params.push_back (Pair("value", data));
+    if(!toaddress.empty())
+        params.push_back (Pair("toaddress", toaddress));
+
+    try {
+        res = name_firstupdate (params, false);
+    }
+    catch (const UniValue& e) {
+        UniValue message = find_value( e, "message");
+        std::string errorStr = message.get_str();
+        LogPrintf ("name_firstupdate error: %s\n", errorStr.c_str());
+        return false;
+    }
+    return true;
+}
+
 void WalletModel::sendPendingNameFirstUpdates()
 {
     for (std::map<std::string, NameNewReturn>::iterator i = pendingNameFirstUpdate.begin();
          i != pendingNameFirstUpdate.end(); )
     {
-        UniValue params1(UniValue::VOBJ), params2(UniValue::VOBJ);
-        UniValue res1, res2, val;
+        UniValue params1(UniValue::VOBJ);
+        UniValue res1, val;
 
-        std::string strName = i->first;
+        std::string name = i->first;
         std::string txid = i->second.hex;
         std::string rand = i->second.rand;
         std::string data = i->second.data;
@@ -833,7 +858,7 @@ void WalletModel::sendPendingNameFirstUpdates()
             UniValue message = find_value( e, "message");
             std::string errorStr = message.get_str();
             LogPrintf ("gettransaction error for name %s: %s\n",
-                       strName.c_str(), errorStr.c_str());
+                       name.c_str(), errorStr.c_str());
             ++i;
             continue;
         }
@@ -841,7 +866,7 @@ void WalletModel::sendPendingNameFirstUpdates()
         val = find_value (res1, "confirmations");
         if (!val.isNum ())
         {
-            LogPrintf ("No confirmations for name %s\n", strName.c_str());
+            LogPrintf ("No confirmations for name %s\n", name.c_str());
             ++i;
             continue;
         }
@@ -855,28 +880,51 @@ void WalletModel::sendPendingNameFirstUpdates()
             continue;
         }
 
-        params2 = UniValue::VOBJ;
-        params2.push_back (Pair("name", strName));
-        params2.push_back (Pair("rand", rand));
-        params2.push_back (Pair("tx", txid));
-        params2.push_back (Pair("value", data));
-        if(!toaddress.empty())
-            params2.push_back (Pair("toaddress", toaddress));
+        if(getEncryptionStatus() == Locked)
+        {
+            if (QMessageBox::Yes != QMessageBox::question(this,
+                  tr("Confirm wallet unlock"),
+                  tr("Namecoin core is about to finalize your name registration "
+                     "for name <b>%1</b>, by sending name_firstupdate. If your "
+                     "wallet is locked, you will be prompted to unlock it. "
+                     "Pressing cancel will delay your name registration by one "
+                     "block, at which point you will be prompted again. Would "
+                     "you like to proceed?").arg(QString::fromStdString(name)),
+                  QMessageBox::Yes|QMessageBox::Cancel,
+                  QMessageBox::Cancel))
+            {
+                LogPrintf ("User cancelled wallet unlock pre-name_firstupdate. Waiting 1 block.\n");
+                return;
+            }
 
-        try {
-            res2 = name_firstupdate (params2, false);
+            LogPrintf ("Attempting wallet unlock ...\n");
+            WalletModel::UnlockContext ctx(this->requestUnlock ());
+            if (!ctx.isValid ())
+            {
+                LogPrintf ("Wallet unlock failed pre-name_firstupdate\n");
+                return;
+            }
+            else
+            {
+                if(!this->completePendingNameFirstUpdate(name, rand, txid, data, toaddress))
+                {
+                    ++i;
+                    continue;
+                }
+            }
         }
-        catch (const UniValue& e) {
-            UniValue message = find_value( e, "message");
-            std::string errorStr = message.get_str();
-            LogPrintf ("name_firstupdate error: %s\n", errorStr.c_str());
-            ++i;
-            continue;
+        else
+        {
+            if(!this->completePendingNameFirstUpdate(name, rand, txid, data, toaddress))
+            {
+                ++i;
+                continue;
+            }
         }
 
-        LogPrintf ("sent name_firstupdate %s\n", strName.c_str());
+        LogPrintf ("sent name_firstupdate %s\n", name.c_str());
         pendingNameFirstUpdate.erase(i++);
-        wallet->EraseNameFirstUpdate(strName);
+        wallet->EraseNameFirstUpdate(name);
     }
 }
 
