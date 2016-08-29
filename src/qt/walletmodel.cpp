@@ -809,7 +809,7 @@ QString WalletModel::nameFirstUpdatePrepare(const QString& name, const QString& 
     return tr("");
 }
 
-bool WalletModel::completePendingNameFirstUpdate(std::string name, std::string rand, std::string txid, std::string data, std::string toaddress)
+bool WalletModel::completePendingNameFirstUpdate(std::string &name, std::string &rand, std::string &txid, std::string &data, std::string &toaddress)
 {
     UniValue params(UniValue::VOBJ);
     UniValue res;

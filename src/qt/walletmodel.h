@@ -218,7 +218,7 @@ public:
     // Send pending name updates, if they are 12 blocks old
     void sendPendingNameFirstUpdates();
 
-    bool completePendingNameFirstUpdate(std::string name, std::string rand, std::string txid, std::string data, std::string toaddress);
+    bool completePendingNameFirstUpdate(std::string &name, std::string &rand, std::string &txid, std::string &data, std::string &toaddress);
 
     // Update name
     // Requires unlocked wallet; can throw exception instead of returning error
