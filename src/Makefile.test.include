@@ -91,8 +91,7 @@ BITCOIN_TESTS =\
   test/versionbits_tests.cpp \
   test/uint256_tests.cpp \
   test/univalue_tests.cpp \
-  test/util_tests.cpp \
-  test/wallet_name_pending_tests.cpp
+  test/util_tests.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
@@ -101,7 +100,8 @@ BITCOIN_TESTS += \
   wallet/test/accounting_tests.cpp \
   wallet/test/wallet_tests.cpp \
   wallet/test/crypto_tests.cpp \
-  wallet/test/rpc_wallet_tests.cpp
+  wallet/test/rpc_wallet_tests.cpp \
+  wallet/test/wallet_name_pending_tests.cpp
 endif
 
 test_test_namecoin_SOURCES = $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
