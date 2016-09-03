@@ -809,10 +809,11 @@ QString WalletModel::nameFirstUpdatePrepare(const QString& name, const QString& 
     return tr("");
 }
 
-bool WalletModel::completePendingNameFirstUpdate(std::string &name, std::string &rand, std::string &txid, std::string &data, std::string &toaddress)
+std::string WalletModel::completePendingNameFirstUpdate(std::string &name, std::string &rand, std::string &txid, std::string &data, std::string &toaddress)
 {
     UniValue params(UniValue::VOBJ);
     UniValue res;
+    std::string errorStr;
 
     params.push_back (Pair("name", name));
     params.push_back (Pair("rand", rand));
@@ -826,11 +827,10 @@ bool WalletModel::completePendingNameFirstUpdate(std::string &name, std::string 
     }
     catch (const UniValue& e) {
         UniValue message = find_value( e, "message");
-        std::string errorStr = message.get_str();
+        errorStr = message.get_str();
         LogPrintf ("name_firstupdate error: %s\n", errorStr.c_str());
-        return false;
     }
-    return true;
+    return errorStr;
 }
 
 void WalletModel::sendPendingNameFirstUpdates()
@@ -840,6 +840,10 @@ void WalletModel::sendPendingNameFirstUpdates()
     {
         UniValue params1(UniValue::VOBJ);
         UniValue res1, val;
+        // hold the error returned from name_firstupdate, via
+        // completePendingNameFirstUpdate, or empty on success
+        // this will drive the error-handling popup
+        std::string completedResult;
 
         std::string name = i->first;
         std::string txid = i->second.hex;
@@ -884,7 +888,7 @@ void WalletModel::sendPendingNameFirstUpdates()
         {
             if (QMessageBox::Yes != QMessageBox::question(this,
                   tr("Confirm wallet unlock"),
-                  tr("Namecoin core is about to finalize your name registration "
+                  tr("Namecoin Core is about to finalize your name registration "
                      "for name <b>%1</b>, by sending name_firstupdate. If your "
                      "wallet is locked, you will be prompted to unlock it. "
                      "Pressing cancel will delay your name registration by one "
@@ -901,28 +905,50 @@ void WalletModel::sendPendingNameFirstUpdates()
             WalletModel::UnlockContext ctx(this->requestUnlock ());
             if (!ctx.isValid ())
             {
-                LogPrintf ("Wallet unlock failed pre-name_firstupdate\n");
                 return;
             }
             else
             {
-                if(!this->completePendingNameFirstUpdate(name, rand, txid, data, toaddress))
-                {
-                    ++i;
-                    continue;
-                }
+                // NOTE: the reason we're doing this here and not at the same
+                // time as the one beneath it is because when ctx is destroyed
+                // (subsequently after leaving this block) the wallet is locked.
+                completedResult = this->completePendingNameFirstUpdate(name, rand, txid, data, toaddress);
             }
         }
         else
         {
-            if(!this->completePendingNameFirstUpdate(name, rand, txid, data, toaddress))
+            completedResult = this->completePendingNameFirstUpdate(name, rand, txid, data, toaddress);
+        }
+
+        if(completedResult.empty())
+        {
+          ++i;
+          continue;
+        }
+        // if we got an error on name_firstupdate. prompt user for what to do
+        else
+        {
+            QString errorMsg = tr("Namecoin Core has encountered an error "
+                                  "while attempting to complete your name "
+                                  "registration for name <b>%1</b>. The "
+                                  "name_firstupdate operation caused the "
+                                  "following error to occurr:<br><br>%2"
+                                  "<br><br>Would you like to cancel the "
+                                  "pending name registration?")
+                .arg(QString::fromStdString(name))
+                .arg(QString::fromStdString(completedResult));
+            // if they didnt hit yes, move onto next pending op, otherwise
+            // the pending transaction will be deleted in the subsequent block
+            if (QMessageBox::Yes != QMessageBox::question(this, tr("Name registration error"),
+                                                          errorMsg,
+                                                          QMessageBox::Yes|QMessageBox::No,
+                                                          QMessageBox::No))
             {
                 ++i;
                 continue;
             }
         }
 
-        LogPrintf ("sent name_firstupdate %s\n", name.c_str());
         pendingNameFirstUpdate.erase(i++);
         wallet->EraseNameFirstUpdate(name);
     }
