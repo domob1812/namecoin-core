@@ -367,7 +367,7 @@ void CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee,
 
 CTxMemPool::CTxMemPool(const CFeeRate& _minReasonableRelayFee) :
     nTransactionsUpdated(0),
-    names(*this), fCheckInputs(true)
+    names(*this)
 {
     _clear(); //lock free clear
 
@@ -764,7 +764,8 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             waitingOnDependants.push_back(&(*it));
         else {
             CValidationState state;
-            assert(!fCheckInputs || CheckInputs(tx, state, mempoolDuplicate, false, SCRIPT_VERIFY_NAMES_MEMPOOL, false, NULL));
+            PrecomputedTransactionData txdata(tx);
+            assert(CheckInputs(tx, state, mempoolDuplicate, false, SCRIPT_VERIFY_NAMES_MEMPOOL, false, txdata, NULL));
             UpdateCoins(tx, mempoolDuplicate, 1000000);
         }
     }
@@ -778,7 +779,8 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             stepsSinceLastRemove++;
             assert(stepsSinceLastRemove < waitingOnDependants.size());
         } else {
-            assert(!fCheckInputs || CheckInputs(entry->GetTx(), state, mempoolDuplicate, false, SCRIPT_VERIFY_NAMES_MEMPOOL, false, NULL));
+            PrecomputedTransactionData txdata(entry->GetTx());
+            assert(CheckInputs(entry->GetTx(), state, mempoolDuplicate, false, SCRIPT_VERIFY_NAMES_MEMPOOL, false, txdata, NULL));
             UpdateCoins(entry->GetTx(), mempoolDuplicate, 1000000);
             stepsSinceLastRemove = 0;
         }
@@ -794,6 +796,11 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
     assert(totalTxSize == checkTotal);
     assert(innerUsage == cachedInnerUsage);
 
+    checkNames(pcoins);
+}
+
+void CTxMemPool::checkNames(const CCoinsViewCache *pcoins) const
+{
     names.check (*pcoins);
 }
 
