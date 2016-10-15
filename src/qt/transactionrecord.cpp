@@ -90,12 +90,29 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             if(fAllFromMe > mine) fAllFromMe = mine;
         }
 
+        // if we find a name script we put it here. display in transaction
+        // records hand off the boolean, foundNameOp
+        bool foundNameOp = false;
+        CNameScript nameScript;
+        std::string nameAddress;
+
         isminetype fAllToMe = ISMINE_SPENDABLE;
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
         {
             isminetype mine = wallet->IsMine(txout);
             if(mine & ISMINE_WATCH_ONLY) involvesWatchAddress = true;
             if(fAllToMe > mine) fAllToMe = mine;
+
+            // check txout for nameop
+            const CNameScript cur(txout.scriptPubKey);
+            CTxDestination address;
+            if(cur.isNameOp ())
+            {
+                foundNameOp = true;
+                nameScript = cur;
+                ExtractDestination(txout.scriptPubKey, address);
+                nameAddress = CBitcoinAddress(address).ToString();
+            }
         }
 
         if (fAllFromMe && fAllToMe)
@@ -103,8 +120,23 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             // Payment to self
             CAmount nChange = wtx.GetChange();
 
-            parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, "",
-                            -(nDebit - nChange), nCredit - nChange));
+            if(foundNameOp)
+            {
+                std::string opName = GetOpName(nameScript.getNameOp());
+                std::string description = nameAddress + " " + opName.substr(3);
+
+                if(nameScript.isAnyUpdate())
+                    description += " " + ValtypeToString(nameScript.getOpName());
+
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::NameOp, description,
+                                               -(nDebit - nChange), nCredit - nChange));
+            }
+            else
+            {
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, "",
+                                               -(nDebit - nChange), nCredit - nChange));
+            }
+
             parts.last().involvesWatchAddress = involvesWatchAddress;   // maybe pass to TransactionRecord as constructor argument
         }
         else if (fAllFromMe)

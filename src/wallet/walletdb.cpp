@@ -15,6 +15,9 @@
 #include "utiltime.h"
 #include "wallet/wallet.h"
 
+#include "names/common.h"
+#include <univalue.h>
+
 #include <boost/version.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/foreach.hpp>
@@ -174,6 +177,18 @@ bool CWalletDB::ErasePool(int64_t nPool)
 bool CWalletDB::WriteMinVersion(int nVersion)
 {
     return Write(std::string("minversion"), nVersion);
+}
+
+bool CWalletDB::WriteNameFirstUpdate(const std::string& name, const std::string& data)
+{
+    nWalletDBUpdated++;
+    return Write(std::make_pair(std::string("pending_firstupdate"), name), data);
+}
+
+bool CWalletDB::EraseNameFirstUpdate(const std::string& name)
+{
+    nWalletDBUpdated++;
+    return Erase(std::make_pair(string("pending_firstupdate"), name));
 }
 
 bool CWalletDB::ReadAccount(const string& strAccount, CAccount& account)
@@ -564,6 +579,39 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CKeyID keyid = keypool.vchPubKey.GetID();
             if (pwallet->mapKeyMetadata.count(keyid) == 0)
                 pwallet->mapKeyMetadata[keyid] = CKeyMetadata(keypool.nTime);
+        }
+        else if (strType == "pending_firstupdate")
+        {
+            std::string strName, strJsonData;
+            ssKey >> strName;
+            ssValue >> strJsonData;
+            UniValue jsonData, v1, v2, v3;
+            std::string txid, rand, pendingData;
+            jsonData.read(strJsonData);
+
+            v1 = find_value (jsonData, "txid");
+            txid = v1.get_str();
+
+            v2 = find_value (jsonData, "rand");
+            rand = v2.get_str();
+
+            v3 = find_value (jsonData, "data");
+            pendingData = v3.get_str();
+
+            if(v1.type() != UniValue::VSTR ||
+               v2.type() != UniValue::VSTR ||
+               v3.type() != UniValue::VSTR) {
+                strErr = strprintf("Bad data while importing pending name firstupdate: %s\n", strName.c_str());
+                return false;
+            }
+
+            NameNewReturn ret;
+            ret.hex = txid;
+            ret.rand = rand;
+            ret.data = pendingData;
+
+            pendingNameFirstUpdate[strName] = ret;
+            LogPrintf("Loaded pending name_firstupdate %s => %s\n", strName, strJsonData);
         }
         else if (strType == "version")
         {

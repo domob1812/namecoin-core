@@ -10,6 +10,7 @@
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
 #include "transactiontablemodel.h"
+#include "nametablemodel.h"
 
 #include "base58.h"
 #include "keystore.h"
@@ -18,18 +19,27 @@
 #include "ui_interface.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h" // for BackupWallet
+#include "wallet/rpcwallet.cpp"
+#include "names/common.h"
+#include "rpc/server.h"
+#include "util.h"
 
 #include <stdint.h>
 
 #include <QDebug>
 #include <QSet>
 #include <QTimer>
+#include <QMessageBox>
 
+#include <univalue.h>
 #include <boost/foreach.hpp>
 
-WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
-    QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
+#include <map>
+
+WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QWidget *parent) :
+    QWidget(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
     transactionTableModel(0),
+    nameTableModel(0),
     recentRequestsTableModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
     cachedEncryptionStatus(Unencrypted),
@@ -40,6 +50,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, Op
 
     addressTableModel = new AddressTableModel(wallet, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
+    nameTableModel = new NameTableModel(platformStyle, wallet, this);
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
 
     // This timer will be fired repeatedly to update the balance
@@ -132,6 +143,8 @@ void WalletModel::pollBalanceChanged()
         checkBalanceChanged();
         if(transactionTableModel)
             transactionTableModel->updateConfirmations();
+
+        sendPendingNameFirstUpdates();
     }
 }
 
@@ -378,6 +391,12 @@ OptionsModel *WalletModel::getOptionsModel()
 AddressTableModel *WalletModel::getAddressTableModel()
 {
     return addressTableModel;
+}
+
+
+NameTableModel *WalletModel::getNameTableModel()
+{
+      return nameTableModel;
 }
 
 TransactionTableModel *WalletModel::getTransactionTableModel()
@@ -682,4 +701,284 @@ bool WalletModel::abandonTransaction(uint256 hash) const
 {
     LOCK2(cs_main, wallet->cs_wallet);
     return wallet->AbandonTransaction(hash);
+}
+
+bool WalletModel::nameAvailable(const QString &name)
+{
+    UniValue params (UniValue::VOBJ);
+    UniValue res, array, isExpired;
+
+    const std::string strName = name.toStdString();
+    params.push_back (Pair("name", strName));
+
+    try {
+        res = name_show( params, false);
+    } catch (const UniValue& e) {
+        return true;
+    }
+
+    isExpired = find_value( res, "expired");
+    if(isExpired.get_bool())
+      return true;
+
+    return false;
+}
+
+NameNewReturn WalletModel::nameNew(const QString &name)
+{
+    std::string strName = name.toStdString ();
+    std::string data;
+
+    UniValue params(UniValue::VOBJ);
+    std::vector<UniValue> values;
+    UniValue res, txid, rand;
+
+    NameNewReturn retval;
+
+    params.push_back (Pair("name", strName));
+    try {
+        res = name_new (params, false);
+    } catch (const UniValue& e) {
+        UniValue message = find_value( e, "message");
+        std::string errorStr = message.get_str();
+        LogPrintf ("nameNew error: %s\n", errorStr.c_str());
+        retval.err_msg = errorStr;
+        retval.ok = false;
+        return retval;
+    }
+
+    retval.ok = true;
+
+    values = res.getValues ();
+    txid = values[0];
+    rand = values[1];
+
+    // txid
+    retval.hex = txid.get_str ();
+    // rand
+    retval.rand = rand.get_str ();
+
+    return retval;
+}
+
+// this gets called from configure names dialog after name_new succeeds
+QString WalletModel::nameFirstUpdatePrepare(const QString& name, const QString& data)
+{
+    if (data.isEmpty())
+        return tr("Data cannot be blank.");
+
+    const std::string strName = name.toStdString ();
+    const std::string strData = data.toStdString();
+    NameNewReturn updatedNameNewReturn;
+
+    // we need to write out everything in NameNewReturn to the wallet, essentially
+    // that's where wallet->WriteNameFirstUpdate comes in
+    // it gets loaded at wallet start, and as long as we keep it updated as
+    // things happen, we should be able to rely on it
+
+    LOCK(cs_main);
+    // pendingNameFirstUpdate is set by the time we get here inside managenamespage.cpp:134
+    std::map<std::string, NameNewReturn>::iterator it = pendingNameFirstUpdate.find(strName);
+
+    if (it == pendingNameFirstUpdate.end())
+        return tr("Cannot find stored name_new data for name");
+
+    const std::string txid = it->second.hex;
+    const std::string rand = it->second.rand;
+    const std::string toaddress = it->second.toaddress;
+
+    updatedNameNewReturn.ok = true;
+    updatedNameNewReturn.hex = txid;
+    updatedNameNewReturn.rand = rand;
+    updatedNameNewReturn.data = strData;
+    if(!toaddress.empty ())
+        updatedNameNewReturn.toaddress = toaddress;
+
+    it->second = updatedNameNewReturn;
+
+    UniValue uniNameUpdateData(UniValue::VOBJ);
+    uniNameUpdateData.pushKV ("txid", txid);
+    uniNameUpdateData.pushKV ("rand", rand);
+    uniNameUpdateData.pushKV ("data", strData);
+    if(!toaddress.empty ())
+        uniNameUpdateData.pushKV ("toaddress", toaddress);
+
+    std::string jsonData = uniNameUpdateData.write();
+    LogPrintf ("Writing name_firstupdate %s => %s\n", strName.c_str(), jsonData.c_str());
+    wallet->WriteNameFirstUpdate(strName, jsonData);
+    return tr("");
+}
+
+std::string WalletModel::completePendingNameFirstUpdate(std::string &name, std::string &rand, std::string &txid, std::string &data, std::string &toaddress)
+{
+    UniValue params(UniValue::VOBJ);
+    UniValue res;
+    std::string errorStr;
+
+    params.push_back (Pair("name", name));
+    params.push_back (Pair("rand", rand));
+    params.push_back (Pair("tx", txid));
+    params.push_back (Pair("value", data));
+    if(!toaddress.empty())
+        params.push_back (Pair("toaddress", toaddress));
+
+    try {
+        res = name_firstupdate (params, false);
+    }
+    catch (const UniValue& e) {
+        UniValue message = find_value( e, "message");
+        errorStr = message.get_str();
+        LogPrintf ("name_firstupdate error: %s\n", errorStr.c_str());
+    }
+    return errorStr;
+}
+
+void WalletModel::sendPendingNameFirstUpdates()
+{
+    for (std::map<std::string, NameNewReturn>::iterator i = pendingNameFirstUpdate.begin();
+         i != pendingNameFirstUpdate.end(); )
+    {
+        UniValue params1(UniValue::VOBJ);
+        UniValue res1, val;
+        // hold the error returned from name_firstupdate, via
+        // completePendingNameFirstUpdate, or empty on success
+        // this will drive the error-handling popup
+        std::string completedResult;
+
+        std::string name = i->first;
+        std::string txid = i->second.hex;
+        std::string rand = i->second.rand;
+        std::string data = i->second.data;
+        std::string toaddress = i->second.toaddress;
+
+        params1.push_back (Pair("txid", txid));
+
+        // if we're here, the names doesn't exist
+        // should we remove it from the DB?
+        try {
+            res1 = gettransaction( params1, false);
+        }
+        catch (const UniValue& e) {
+            UniValue message = find_value( e, "message");
+            std::string errorStr = message.get_str();
+            LogPrintf ("gettransaction error for name %s: %s\n",
+                       name.c_str(), errorStr.c_str());
+            ++i;
+            continue;
+        }
+
+        val = find_value (res1, "confirmations");
+        if (!val.isNum ())
+        {
+            LogPrintf ("No confirmations for name %s\n", name.c_str());
+            ++i;
+            continue;
+        }
+
+        const int confirms = val.get_int ();
+        LogPrintf ("Pending Name FirstUpdate Confirms: %d\n", confirms);
+
+        if ( confirms < 12)
+        {
+            ++i;
+            continue;
+        }
+
+        if(getEncryptionStatus() == Locked)
+        {
+            if (QMessageBox::Yes != QMessageBox::question(this,
+                  tr("Confirm wallet unlock"),
+                  tr("Namecoin Core is about to finalize your name registration "
+                     "for name <b>%1</b>, by sending name_firstupdate. If your "
+                     "wallet is locked, you will be prompted to unlock it. "
+                     "Pressing cancel will delay your name registration by one "
+                     "block, at which point you will be prompted again. Would "
+                     "you like to proceed?").arg(QString::fromStdString(name)),
+                  QMessageBox::Yes|QMessageBox::Cancel,
+                  QMessageBox::Cancel))
+            {
+                LogPrintf ("User cancelled wallet unlock pre-name_firstupdate. Waiting 1 block.\n");
+                return;
+            }
+
+            LogPrintf ("Attempting wallet unlock ...\n");
+            WalletModel::UnlockContext ctx(this->requestUnlock ());
+            if (!ctx.isValid ())
+            {
+                return;
+            }
+            else
+            {
+                // NOTE: the reason we're doing this here and not at the same
+                // time as the one beneath it is because when ctx is destroyed
+                // (subsequently after leaving this block) the wallet is locked.
+                completedResult = this->completePendingNameFirstUpdate(name, rand, txid, data, toaddress);
+            }
+        }
+        else
+        {
+            completedResult = this->completePendingNameFirstUpdate(name, rand, txid, data, toaddress);
+        }
+
+        if(completedResult.empty())
+        {
+          ++i;
+          continue;
+        }
+        // if we got an error on name_firstupdate. prompt user for what to do
+        else
+        {
+            QString errorMsg = tr("Namecoin Core has encountered an error "
+                                  "while attempting to complete your name "
+                                  "registration for name <b>%1</b>. The "
+                                  "name_firstupdate operation caused the "
+                                  "following error to occurr:<br><br>%2"
+                                  "<br><br>Would you like to cancel the "
+                                  "pending name registration?")
+                .arg(QString::fromStdString(name))
+                .arg(QString::fromStdString(completedResult));
+            // if they didnt hit yes, move onto next pending op, otherwise
+            // the pending transaction will be deleted in the subsequent block
+            if (QMessageBox::Yes != QMessageBox::question(this, tr("Name registration error"),
+                                                          errorMsg,
+                                                          QMessageBox::Yes|QMessageBox::No,
+                                                          QMessageBox::No))
+            {
+                ++i;
+                continue;
+            }
+        }
+
+        pendingNameFirstUpdate.erase(i++);
+        wallet->EraseNameFirstUpdate(name);
+    }
+}
+
+QString WalletModel::nameUpdate(const QString &name, const QString &data, const QString &transferToAddress)
+{
+    std::string strName = name.toStdString ();
+    std::string strData = data.toStdString ();
+    std::string strTransferToAddress = transferToAddress.toStdString ();
+
+    UniValue params(UniValue::VOBJ);
+    UniValue res;
+
+    std::string tx;
+
+    params.push_back (Pair("name", strName));
+    params.push_back (Pair("value", strData));
+
+    if (strTransferToAddress != "")
+        params.push_back (Pair("toaddress", strTransferToAddress));
+
+    try {
+        res = name_update (params, false);
+    }
+    catch (const UniValue& e) {
+        UniValue message = find_value( e, "message");
+        std::string errorStr = message.get_str();
+        LogPrintf ("name_update error: %s\n", errorStr.c_str());
+        return QString::fromStdString(errorStr);
+    }
+    return tr ("");
 }

@@ -758,6 +758,9 @@ public:
 
     bool DelAddressBook(const CTxDestination& address);
 
+    bool WriteNameFirstUpdate(const std::string& name, const std::string& data);
+    bool EraseNameFirstUpdate(const std::string& name);
+
     void UpdatedTransaction(const uint256 &hashTx);
 
     void Inventory(const uint256 &hash)
