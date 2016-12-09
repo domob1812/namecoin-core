@@ -96,6 +96,11 @@ static const unsigned int BLOCK_STALLING_TIMEOUT = 2;
  *  overloaded both with small and large headers.
  */
 static const unsigned int MAX_HEADERS_RESULTS = 2000;
+/** Maximum depth of blocks we're willing to serve as compact blocks to peers
+ *  when requested. For older blocks, a regular BLOCK response will be sent. */
+static const int MAX_CMPCTBLOCK_DEPTH = 5;
+/** Maximum depth of blocks we're willing to respond to GETBLOCKTXN requests for. */
+static const int MAX_BLOCKTXN_DEPTH = 10;
 /** Maximum size of a "headers" message.  This is enforced starting with
  *  SIZE_HEADERS_LIMIT_VERSION peers and prevents overloading if we have
  *  very large headers (due to auxpow).
