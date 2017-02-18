@@ -849,7 +849,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+183"/>
+        <location line="+181"/>
         <source>yes</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1083,7 +1083,7 @@
         <translation>Use a custom data directory:</translation>
     </message>
     <message>
-        <location filename="../intro.cpp" line="+89"/>
+        <location filename="../intro.cpp" line="+94"/>
         <source>Error: Specified data directory &quot;%1&quot; cannot be created.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1499,7 +1499,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+28"/>
         <source>The supplied proxy address is invalid.</source>
         <translation>The supplied proxy address is invalid.</translation>
     </message>
@@ -1760,7 +1760,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+759"/>
+        <location line="+762"/>
         <source>%1 d</source>
         <translation type="unfinished"></translation>
     </message>
