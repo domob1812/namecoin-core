@@ -168,7 +168,8 @@ Opt into RBF When Sending
 
 A new startup option, `-walletrbf`, has been added to allow users to have all
 transactions sent opt into RBF support. The default value for this option is
-currently `false`, so transactions will not opt into RBF by default.
+currently `false`, so transactions will not opt into RBF by default. The new
+`bumpfee` RPC can be used to replace transactions that opt into RBF.
 
 Sensitive Data Is No Longer Stored In Debug Console History
 -----------------------------------------------------------
@@ -246,6 +247,11 @@ Low-level RPC changes
    about the memory usage of Bitcoin Core. This was added in conjunction with
    optimizations to memory management. See [Pull #8753](https://github.com/bitcoin/bitcoin/pull/8753)
    for more information.
+
+ - A new RPC command `bumpfee` has been added which allows replacing an
+   unconfirmed wallet transaction that signaled RBF (see the `-walletrbf`
+   startup option above) with a new transaction that pays a higher fee, and
+   should be more likely to get confirmed quickly.
 
 HTTP REST Changes
 -----------------
@@ -341,6 +347,16 @@ Fundrawtransaction change address reuse
 
 - Users should also consider using `getrawchangeaddress()` in conjunction
   with `fundrawtransaction`'s `changeAddress` option.
+
+Unused mempool memory used by coincache
+----------------------------------------
+
+- Before 0.14, memory reserved for mempool (using the `-maxmempool` option)
+  went unused during initial block download, or IBD. In 0.14, the UTXO DB cache
+  (controlled with the `-dbcache` option) borrows memory from the mempool
+  when there is extra memory available. This may result in an increase in
+  memory usage during IBD for those previously relying on only the `-dbcache`
+  option to limit memory during that time.
 
 0.14.0 Change log
 =================
@@ -481,6 +497,7 @@ and git merge commit are mentioned.
 - #9765 `1e92e04` Harden against mistakes handling invalid blocks (sdaftuar)
 - #9779 `3c02b95` Update nMinimumChainWork and defaultAssumeValid (gmaxwell)
 - #8524 `19b0f33` Precompute sighashes (sipa)
+- #9791 `1825a03` Avoid VLA in hash.h (sipa)
 
 ### Build system
 - #8238 `6caf3ee` ZeroMQ 4.1.5 && ZMQ on Windows (fanquake)
@@ -657,6 +674,8 @@ and git merge commit are mentioned.
 - #9269 `43e8150` Align struct COrphan definition (sipa)
 - #9820 `599c69a` Fix pruning test broken by 2 hour manual prune window (ryanofsky)
 - #9824 `260c71c` qa: Check return code when stopping nodes (MarcoFalke)
+- #9875 `50953c2` tests: Fix dangling pwalletMain pointer in wallet tests (laanwj)
+- #9839 `eddaa6b` [qa] Make import-rescan.py watchonly check reliable (ryanofsky)
 
 ### Documentation
 - #8332 `806b9e7` Clarify witness branches in transaction.h serialization (dcousens)
@@ -694,6 +713,8 @@ and git merge commit are mentioned.
 - #8915 `03dd707` Add copyright/patent issues to possible NACK reasons (petertodd)
 - #8965 `23e03f8` Mention that PPA doesn't support Debian (anduck)
 - #9115 `bfc7aad` Mention reporting security issues responsibly (paveljanik)
+- #9840 `08e0690` Update sendfrom RPC help to correct coin selection misconception (ryanofsky)
+- #9865 `289204f` Change bitcoin address in RPC help message (marijnfs)
 
 ### Miscellaneous
 - #8274 `7a2d402` util: Update tinyformat (laanwj)
@@ -743,6 +764,7 @@ and git merge commit are mentioned.
 - #9777 `8dee822` Handle unusual maxsigcachesize gracefully (jnewbery)
 - #8863,#8807 univalue: Pull subtree (MarcoFalke)
 - #9798 `e22c067` Fix Issue #9775 (Check returned value of fopen) (kirit93)
+- #9856 `69832aa` Terminate immediately when allocation fails (theuni)
 
 Credits
 =======
@@ -809,6 +831,7 @@ Thanks to everyone who directly contributed to this release:
 - Luke Dashjr
 - maiiz
 - MarcoFalke
+- Marijn Stollenga
 - Marty Jones
 - Masahiko Hyuga
 - Matt Corallo
