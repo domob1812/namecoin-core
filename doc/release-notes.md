@@ -33,10 +33,14 @@ Notable changes
 RPC changes
 -----------
 
-The first positional argument of `createrawtransaction` was renamed.
-This interface change breaks compatibility with 0.14.0, when the named
-arguments functionality, introduced in 0.14.0, is used.
+- The first positional argument of `createrawtransaction` was renamed from
+  `transactions` to `inputs`.
 
+- The argument of `disconnectnode` was renamed from `node` to `address`.
+
+These interface changes break compatibility with 0.14.0, when the named
+arguments functionality, introduced in 0.14.0, is used. Client software
+using these calls with named arguments needs to be updated.
 
 Mining
 ------
@@ -50,6 +54,24 @@ activate at a time when no segwit transactions could be included.
 Since many miners are now including the segwit commitment this concern
 no longer applies.
 
+UTXO memory accounting
+----------------------
+
+Memory usage for the UTXO cache is being calculated more accurately, so that
+the configured limit (`-dbcache`) will be respected when memory usage peaks
+during cache flushes.  The memory accounting in prior releases is estimated to
+only account for half the actual peak utilization.
+
+The default `-dbcache` has also been changed in this release to 450MiB.  Users
+who currently set `-dbcache` to a high value (e.g. to keep the UTXO more fully
+cached in memory) should consider increasing this setting in order to achieve
+the same cache performance as prior releases.  Users on low-memory systems
+(such as systems with 1GB or less) should consider specifying a lower value for
+this parameter.
+
+Additional information relating to running on low-memory systems can be found
+here:
+[reducing-bitcoind-memory-usage.md](https://gist.github.com/laanwj/efe29c7661ce9b6620a7).
 
 0.14.1 Change log
 =================
@@ -64,6 +86,7 @@ git merge commit are mentioned.
 - #10139 `f15268d` Remove auth cookie on shutdown (practicalswift)
 - #10146 `2fea10a` Better error handling for submitblock (rawodb, gmaxwell)
 - #10144 `d947afc` Prioritisetransaction wasn't always updating ancestor fee (sdaftuar)
+- #10204 `3c79602` Rename disconnectnode argument (jnewbery)
 
 ### Block and transaction handling
 - #10126 `0b5e162` Compensate for memory peak at flush time (sipa)
@@ -72,6 +95,7 @@ git merge commit are mentioned.
 
 ### P2P protocol and network code
 - #9953/#10013 `d2548a4` Fix shutdown hang with >= 8 -addnodes set (TheBlueMatt)
+- #10176 `30fa231` net: gracefully handle NodeId wrapping (theuni)
 
 ### Build system
 - #9973 `e9611d1` depends: fix zlib build on osx (theuni)
@@ -82,6 +106,9 @@ git merge commit are mentioned.
 ### Mining
 - #9955/#10006 `569596c` Don't require segwit in getblocktemplate for segwit signalling or mining (sdaftuar)
 - #9959/#10127 `b5c3440` Prevent slowdown in CreateNewBlock on large mempools (sdaftuar)
+
+### Tests and QA
+- #10157 `55f641c` Fix the `mempool_packages.py` test (sdaftuar)
 
 ### Miscellaneous
 - #10037 `4d8e660` Trivial: Fix typo in help getrawtransaction RPC (keystrike)
