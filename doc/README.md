@@ -1,4 +1,4 @@
-Namecoin Core 0.14.1
+Namecoin Core 0.14.2
 =====================
 
 Setup
