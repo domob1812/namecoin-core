@@ -83,6 +83,7 @@ BASE_SCRIPTS= [
     'rawtransactions.py',
     'reindex.py',
     # vv Tests less than 30s vv
+    'keypool-topup.py',
     'zmq_test.py',
     'mempool_resurrect_test.py',
     'txn_doublespend.py --mineblock',
@@ -124,6 +125,7 @@ BASE_SCRIPTS= [
     'bipdersig-p2p.py',
     'bip65-cltv-p2p.py',
     'uptime.py',
+    'resendwallettransactions.py',
 
     # auxpow tests
     'auxpow_mining.py',
