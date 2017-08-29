@@ -8,7 +8,7 @@ Bitcoin Core version *0.15.0* is now available from:
 This is a new major version release, including new features, various bugfixes
 and performance improvements, as well as updated translations.
 
-Please report bugs using the issue tracker at github:
+Please report bugs using the issue tracker at GitHub:
 
   <https://github.com/bitcoin/bitcoin/issues>
 
@@ -155,7 +155,7 @@ In previous versions of Bitcoin Core, a portion of each block could be reserved 
 - The `-sendfreetransactions` option has been removed, since almost all miners do not include transactions which do not attach a transaction fee.
 - The `-blockprioritysize` option has been removed.
 - The `estimatepriority` and `estimatesmartpriority` RPCs have been removed.
-- The `getmempoolancestors`, `getmempooldescendants`, `getmempooolentry` and `getrawmempool` RPCs no longer return `startingpriority` and `currentpriority`.
+- The `getmempoolancestors`, `getmempooldescendants`, `getmempoolentry` and `getrawmempool` RPCs no longer return `startingpriority` and `currentpriority`.
 - The `prioritisetransaction` RPC no longer takes a `priority_delta` argument, which is replaced by a `dummy` argument for backwards compatibility with clients using positional arguments. The RPC is still used to change the apparent fee-rate of the transaction by using the `fee_delta` argument.
 - `-minrelaytxfee` can now be set to 0. If `minrelaytxfee` is set, then fees smaller than `minrelaytxfee` (per kB) are rejected from relaying, mining and transaction creation. This defaults to 1000 satoshi/kB.
 - The `-printpriority` option has been updated to only output the fee rate and hash of transactions included in a block by the mining code.
@@ -215,7 +215,7 @@ Low-level RPC changes
   - `maximumCount` - a number specifying the minimum number of UTXOs
   - `minimumSumAmount` - a number specifying the minimum sum value of all UTXOs
 
-- The `getmempoolancestors`, `getmempooldescendants`, `getmempooolentry` and `getrawmempool` RPCs no longer return `startingpriority` and `currentpriority`. See [Removal of Coin Age Priority](#removal-of-coin-age-priority).
+- The `getmempoolancestors`, `getmempooldescendants`, `getmempoolentry` and `getrawmempool` RPCs no longer return `startingpriority` and `currentpriority`. See [Removal of Coin Age Priority](#removal-of-coin-age-priority).
 
 - The `dumpwallet` RPC now returns the full absolute path to the dumped wallet. It
   used to return no value, even if successful (See [PR 9740](https://github.com/bitcoin/bitcoin/pull/9740)).
@@ -292,6 +292,7 @@ Thanks to everyone who directly contributed to this release:
 - Allan Doensen
 - Andres G. Aragoneses
 - Andrew Chow
+- Angel Leon
 - Awemany
 - Bob McElrath
 - Brian McMichael
@@ -306,7 +307,7 @@ Thanks to everyone who directly contributed to this release:
 - Daniel Cousens
 - darksh1ne
 - Dimitris Tsapakidis
-- Eric Shaw Jr
+- Eric Shaw
 - Evan Klitzke
 - fanquake
 - Felix Weis
@@ -314,7 +315,6 @@ Thanks to everyone who directly contributed to this release:
 - Greg Griffith
 - Gregory Maxwell
 - Gregory Sanders
-- gubatron
 - Ian Kelling
 - Jack Grigg
 - James Evans
@@ -326,15 +326,12 @@ Thanks to everyone who directly contributed to this release:
 - Johnathan Corgan
 - John Newbery
 - Jonas Schnelli
-- jonnynewbs
 - Jorge Timón
 - Kalle Alm
 - Karl-Johan Alm
-- Kewde
-- keystrike
+- kewde
 - KibbledJiveElkZoo
-- Kibbled Jive Elk Zoo
-- kirit93
+- Kirit Thadaka
 - kobake
 - Kyle Honeycutt
 - Lawrence Nahum
@@ -354,7 +351,6 @@ Thanks to everyone who directly contributed to this release:
 - Mikerah
 - Mike van Rossum
 - Mitchell Cash
-- NicolasDorier
 - Nicolas Dorier
 - Patrick Strateman
 - Pavel Janík
