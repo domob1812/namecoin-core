@@ -15,7 +15,6 @@
 #include "validation.h"
 
 #include "test/test_bitcoin.h"
-#include "test/testutil.h"
 
 #include <boost/test/unit_test.hpp>
 

@@ -108,4 +108,8 @@ struct TestMemPoolEntryHelper
     TestMemPoolEntryHelper &SpendsCoinbase(bool _flag) { spendsCoinbase = _flag; return *this; }
     TestMemPoolEntryHelper &SigOpsCost(unsigned int _sigopsCost) { sigOpCost = _sigopsCost; return *this; }
 };
+
+// Define == for coin equality (used by multiple tests).
+bool operator==(const Coin &a, const Coin &b);
+
 #endif
