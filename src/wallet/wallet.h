@@ -8,6 +8,7 @@
 
 #include "amount.h"
 #include "auxpow.h" // contains CMerkleTx
+#include "names/common.h"
 #include "policy/feerate.h"
 #include "streams.h"
 #include "tinyformat.h"
@@ -1049,6 +1050,18 @@ public:
        caller must ensure the current wallet version is correct before calling
        this function). */
     bool SetHDMasterKey(const CPubKey& key);
+
+    std::map<std::string, CNamePendingData> namePendingMap;
+
+    bool PendingNameFirstUpdateExists(const std::string &name);
+    bool WritePendingNameFirstUpdate(
+            const std::string &name,
+            const std::string &rand,
+            const std::string &txid,
+            const std::string &data,
+            const std::string &toaddress);
+    bool ErasePendingNameFirstUpdate(const std::string &name);
+    bool GetPendingNameFirstUpdate(const std::string &name, CNamePendingData *data=nullptr);
 };
 
 /** A key allocated from the key pool. */
