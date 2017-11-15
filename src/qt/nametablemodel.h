@@ -27,7 +27,8 @@ public:
     enum ColumnIndex {
         Name = 0,
         Value = 1,
-        ExpiresIn = 2
+        ExpiresIn = 2,
+        NameStatus = 3
     };
 
     /** @name Methods overridden from QAbstractTableModel
@@ -55,7 +56,7 @@ private:
     void unsubscribeFromCoreSignals();
 
 public Q_SLOTS:
-    void updateEntry(const QString &name, const QString &value, int nHeight, int status, int *outNewRowIndex=nullptr);
+    void updateEntry(const QString &name, const QString &value, int nHeight, int status, const QString &nameStatus, int *outNewRowIndex=nullptr);
     void updateExpiration();
     void updateTransaction(const QString &hash, int status);
 
@@ -67,6 +68,7 @@ struct NameTableEntry
     QString name;
     QString value;
     int nHeight;
+    QString nameStatus;
 
     static const int NAME_NEW = -1;             // Dummy nHeight value for not-yet-created names
     static const int NAME_NON_EXISTING = -2;    // Dummy nHeight value for unitinialized entries
@@ -77,10 +79,10 @@ struct NameTableEntry
     static bool CompareHeight(int nOldHeight, int nNewHeight);    // Returns true if new height is better
 
     NameTableEntry() : nHeight(NAME_NON_EXISTING) {}
-    NameTableEntry(const QString &name, const QString &value, int nHeight):
-        name(name), value(value), nHeight(nHeight) {}
-    NameTableEntry(const std::string &name, const std::string &value, int nHeight):
-        name(QString::fromStdString(name)), value(QString::fromStdString(value)), nHeight(nHeight) {}
+    NameTableEntry(const QString &name, const QString &value, int nHeight, const QString &nameStatus):
+        name(name), value(value), nHeight(nHeight), nameStatus(nameStatus) {}
+    NameTableEntry(const std::string &name, const std::string &value, int nHeight, const std::string &nameStatus):
+        name(QString::fromStdString(name)), value(QString::fromStdString(value)), nHeight(nHeight), nameStatus(QString::fromStdString(nameStatus)) {}
 };
 
 #endif // NAMETABLEMODEL_H

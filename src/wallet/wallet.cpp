@@ -4111,7 +4111,9 @@ bool CWallet::WritePendingNameFirstUpdate(const std::string &name, const std::st
     nameData.setHex(txid);
     nameData.setRand(rand);
     nameData.setData(data);
-    nameData.setToAddress(toaddress);
+    if(!toaddress.empty())
+        nameData.setToAddress(toaddress);
+
     bool success = CWalletDB(*dbw).WriteNameFirstUpdate(name, nameData);
     if(success)
         namePendingMap[name] = nameData;

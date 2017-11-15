@@ -37,6 +37,11 @@ BOOST_AUTO_TEST_CASE(wallet_name_pending_tests)
     nameDataWithAddr.setData(data);
     nameDataWithAddr.setToAddress(toAddress);
 
+    // test that a blank address returns a blank address
+    {
+        BOOST_CHECK(nameData.getToAddress().empty());
+    }
+
     CWalletDBWrapper& dbw = pwalletMain->GetDBHandle();
 
     {
