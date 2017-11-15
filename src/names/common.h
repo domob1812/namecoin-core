@@ -506,7 +506,13 @@ public:
         READWRITE(vchData);
     }
 
-    inline const std::string getToAddress() { return EncodeDestination(toAddress);}
+    inline const std::string getToAddress()
+    {
+        CTxDestination dest;
+        if (ExtractDestination (toAddress, dest))
+            return EncodeDestination (dest);
+        return "";
+    }
     inline const std::string getHex() { return hex.GetHex(); }
     inline const std::string getRand() { return rand.GetHex(); }
     inline const std::string getData() { return ValtypeToString(vchData); }

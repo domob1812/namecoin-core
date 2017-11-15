@@ -45,12 +45,12 @@ namespace
 //! Press "Yes" or "Cancel" buttons in modal send confirmation dialog.
 void ConfirmMsgBox(QString* text = nullptr, bool cancel = false)
 {
-    qDebug("setting singleShot callback ConfirmMsgBox");
     QTimer::singleShot(0, makeCallback([text, cancel](Callback* callback) {
         for (QWidget* widget : QApplication::topLevelWidgets()) {
             if (!widget->inherits("QMessageBox")) continue;
             QMessageBox * box = qobject_cast<QMessageBox*>(widget);
             if (text) *text = box->text();
+            qDebug("clicking ConfirmMsgBox");
             box->button(cancel ? QMessageBox::Cancel : QMessageBox::Yes)->click();
         }
         delete callback;
@@ -60,14 +60,14 @@ void ConfirmMsgBox(QString* text = nullptr, bool cancel = false)
 //! Press "Yes" or "Cancel" buttons in modal send confirmation dialog.
 void ConfNamesDialog(const QString &data, bool cancel = false)
 {
-    qDebug("setting singleShot callback ConfNamesDialog");
     QTimer::singleShot(1000, makeCallback([data, cancel](Callback* callback) {
         for (QWidget* widget : QApplication::topLevelWidgets()) {
             if (!widget->inherits("ConfigureNameDialog")) continue;
             ConfigureNameDialog * dlg = qobject_cast<ConfigureNameDialog*>(widget);
             QLineEdit* dataEdit = dlg->findChild<QLineEdit*>("dataEdit");
             dataEdit->setText(data);
-            dlg->accept(); //button(QMessageBox::OK)->click();
+            qDebug("accepting names dialog");
+            dlg->accept();
         }
         delete callback;
     }), SLOT(call()));

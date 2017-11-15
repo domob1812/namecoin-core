@@ -158,8 +158,7 @@ void ManageNamesPage::on_submitNameButton_clicked()
     walletModel->writePendingNameFirstUpdate(strName, res.rand, res.hex, strData, res.toaddress);
 
     int newRowIndex;
-    model->updateEntry(name, dlg.getReturnData(), NameTableEntry::NAME_NEW, CT_NEW, &newRowIndex);
-
+    model->updateEntry(name, dlg.getReturnData(), NameTableEntry::NAME_NEW, CT_NEW, "pending confirm", &newRowIndex);
     ui->tableView->selectRow(newRowIndex);
     ui->tableView->setFocus();
 
@@ -220,14 +219,15 @@ void ManageNamesPage::on_configureNameButton_clicked()
     const QModelIndexList &indexes = ui->tableView->selectionModel()->selectedRows(NameTableModel::Name);
     if (indexes.isEmpty())
         return;
+    WalletModel::UnlockContext ctx(walletModel->requestUnlock ());
+    if (!ctx.isValid ())
+        return;
 
     const QModelIndex &index = indexes.at(0);
     const QString &name = index.data(Qt::EditRole).toString();
     const std::string &strName = name.toStdString();
     const QString &value = index.sibling(index.row(), NameTableModel::Value).data(Qt::EditRole).toString();
     const bool fFirstUpdate = walletModel->pendingNameFirstUpdateExists(strName);
-
-    std::cout << "fFirstUpdate " << fFirstUpdate << '\n';
 
     ConfigureNameDialog dlg(platformStyle, name, value, fFirstUpdate, this);
     dlg.setModel(walletModel);
@@ -247,6 +247,7 @@ void ManageNamesPage::on_configureNameButton_clicked()
             walletModel->writePendingNameFirstUpdate(strName, npd.getRand(), npd.getHex(), strData, npd.getToAddress());
             LogPrintf("configure:changing updating pending name_firstupdate name=%s value=%s\n",
                 strName.c_str(), strData.c_str());
+            model->updateEntry(name, qData, NameTableEntry::NAME_UNCONFIRMED, CT_UPDATED, "firstupdate pending");
         }
     }
     else
@@ -258,9 +259,9 @@ void ManageNamesPage::on_configureNameButton_clicked()
             QMessageBox::warning(this, tr("Name update"), tr("Unable to update name.<br>Reason: %1").arg(result));
             return;
         }
+        model->updateEntry(name, qData, NameTableEntry::NAME_UNCONFIRMED, CT_UPDATED, "update pending");
     }
 
-    model->updateEntry(name, qData, NameTableEntry::NAME_NEW, CT_UPDATED);
 }
 
 void ManageNamesPage::on_renewNameButton_clicked ()
@@ -293,11 +294,13 @@ void ManageNamesPage::on_renewNameButton_clicked ()
         return;
 
     const QString err_msg = walletModel->nameUpdate(name, value, "");
-
-    if (err_msg.isEmpty() || err_msg == "ABORTED")
+    if (!err_msg.isEmpty() && err_msg != "ABORTED")
+    {
+        QMessageBox::critical(this, tr("Name update error"), err_msg);
         return;
+    }
 
-    QMessageBox::critical(this, tr("Name update error"), err_msg);
+    model->updateEntry(name, value, NameTableEntry::NAME_UNCONFIRMED, CT_UPDATED, "update pending");
 }
 
 void ManageNamesPage::exportClicked()
@@ -321,6 +324,7 @@ void ManageNamesPage::exportClicked()
     writer.addColumn("Name", NameTableModel::Name, Qt::EditRole);
     writer.addColumn("Value", NameTableModel::Value, Qt::EditRole);
     writer.addColumn("Expires In", NameTableModel::ExpiresIn, Qt::EditRole);
+    writer.addColumn("Name Status", NameTableModel::NameStatus, Qt::EditRole);
 
     if (!writer.write())
     {

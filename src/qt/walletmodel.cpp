@@ -855,8 +855,8 @@ const std::string WalletModel::completePendingNameFirstUpdate(const std::string 
     jsonRequest.params = params;
     jsonRequest.fHelp = false;
 
-    LogPrintf("executing name_firstupdate name=%s rand=%s tx=%s value=%s\n",
-        name.c_str(), rand.c_str(), txid.c_str(), data.c_str());
+    LogPrintf("executing name_firstupdate name=%s rand=%s tx=%s value=%s toaddr=%s\n",
+        name.c_str(), rand.c_str(), txid.c_str(), data.c_str(), toaddress.c_str());
 
     UniValue res;
     try {
@@ -962,7 +962,7 @@ std::vector<std::string> WalletModel::sendPendingNameFirstUpdates()
         }
 
         successfulNames.push_back(name);
-        nameTableModel->updateEntry(QString::fromStdString(name), QString::fromStdString(data), NameTableEntry::NAME_NEW, CT_UPDATED);
+        nameTableModel->updateEntry(QString::fromStdString(name), QString::fromStdString(data), NameTableEntry::NAME_NEW, CT_UPDATED, "firstupdate pending");
     }
     return successfulNames;
 }
