@@ -1600,7 +1600,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         nLocalServices = ServiceFlags(nLocalServices | NODE_WITNESS);
         // Only care about others providing witness capabilities if there is a softfork
         // defined.
-        nRelevantServices = ServiceFlags(nRelevantServices | NODE_WITNESS);
+        // FIXME: This is disabled for now since Namecoin has segwit disabled.
+        // Reenable once we stage segwit.
+        //nRelevantServices = ServiceFlags(nRelevantServices | NODE_WITNESS);
     }
 
     // ********************************************************* Step 10: import blocks
