@@ -15,6 +15,7 @@
 #ifdef ENABLE_WALLET
 #include "paymentservertests.h"
 #include "wallettests.h"
+#include "managenamestests.h"
 #endif
 
 #include <QApplication>
@@ -97,6 +98,10 @@ int main(int argc, char *argv[])
 #ifdef ENABLE_WALLET
     WalletTests test5;
     if (QTest::qExec(&test5) != 0) {
+        fInvalid = true;
+    }
+    ManageNamesTests test6;
+    if (QTest::qExec(&test6) != 0) {
         fInvalid = true;
     }
 #endif
