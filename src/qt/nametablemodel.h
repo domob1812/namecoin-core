@@ -1,7 +1,7 @@
 #ifndef NAMETABLEMODEL_H
 #define NAMETABLEMODEL_H
 
-#include "bitcoinunits.h"
+#include <qt/bitcoinunits.h>
 
 #include <QAbstractTableModel>
 #include <QStringList>

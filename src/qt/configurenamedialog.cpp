@@ -1,12 +1,12 @@
-#include "configurenamedialog.h"
-#include "ui_configurenamedialog.h"
+#include <qt/configurenamedialog.h>
+#include <qt/forms/ui_configurenamedialog.h>
 
-#include "addressbookpage.h"
-#include "guiutil.h"
-#include "names/main.h"
-#include "platformstyle.h"
-#include "wallet/wallet.h"
-#include "walletmodel.h"
+#include <names/main.h>
+#include <qt/addressbookpage.h>
+#include <qt/guiutil.h>
+#include <qt/platformstyle.h>
+#include <qt/walletmodel.h>
+#include <wallet/wallet.h>
 
 #include <QMessageBox>
 #include <QClipboard>

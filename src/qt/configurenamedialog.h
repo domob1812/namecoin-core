@@ -1,7 +1,7 @@
 #ifndef CONFIGURENAMEDIALOG_H
 #define CONFIGURENAMEDIALOG_H
 
-#include "platformstyle.h"
+#include <qt/platformstyle.h>
 
 #include <QDialog>
 

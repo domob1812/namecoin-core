@@ -1,20 +1,18 @@
-#include "nametablemodel.h"
+#include <qt/nametablemodel.h>
 
-#include "guiutil.h"
-#include "walletmodel.h"
-#include "guiconstants.h"
-#include "wallet/wallet.h"
-#include "ui_interface.h"
-#include "platformstyle.h"
-
-#include "names/common.h"
-#include "names/main.h"
-#include "util.h"
-#include "protocol.h"
-#include "rpc/server.h"
-#include "validation.h" // cs_main
-
+#include <names/common.h>
+#include <names/main.h>
+#include <qt/guiconstants.h>
+#include <qt/guiutil.h>
+#include <qt/platformstyle.h>
+#include <qt/walletmodel.h>
+#include <rpc/protocol.h>
+#include <rpc/server.h>
+#include <ui_interface.h>
 #include <univalue.h>
+#include <util.h>
+#include <validation.h> // cs_main
+#include <wallet/wallet.h>
 
 #include <QDebug>
 #include <QObject>
@@ -106,7 +104,7 @@ public:
                 vNamesO[name] = NameTableEntry(
                     name, data,
                     NameTableEntry::NAME_UNCONFIRMED,
-                    "pending confirmation");
+                    "pending registration");
                 LogPrintf("found pending name: name=%s\n", name.c_str());
             }
         }
@@ -459,17 +457,17 @@ void NameTableModel::updateTransaction(const QString &hash, int status)
         LogPrintf ("tx %s has no name in wallet\n", strHash);
         return;
     }
-    CTransaction tx = mi->second;
+    CWalletTx wtx = mi->second;
 
-    const auto &vout = tx.vout;
-    for (const auto it : vout)
+    // const auto vout = tx->vout;
+    for (const CTxOut& txout : wtx.tx->vout)
     {
-        if(!CNameScript::isNameScript(it.scriptPubKey))
+        if(!CNameScript::isNameScript(txout.scriptPubKey))
         {
             continue;
         }
 
-        CNameScript nameScript(it.scriptPubKey);
+        CNameScript nameScript(txout.scriptPubKey);
         switch (nameScript.getNameOp())
         {
             case OP_NAME_NEW:

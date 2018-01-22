@@ -1,20 +1,19 @@
-#include "managenamespage.h"
-#include "ui_managenamespage.h"
+#include <qt/managenamespage.h>
+#include <qt/forms/ui_managenamespage.h>
 
-#include "base58.h"
-#include "configurenamedialog.h"
-#include "csvmodelwriter.h"
-#include "guiutil.h"
-#include "names/common.h"
-#include "nametablemodel.h"
-#include "platformstyle.h"
-#include "ui_interface.h"
-#include "util.h"
-#include "validation.h" // cs_main
-#include "wallet/wallet.h"
-#include "walletmodel.h"
-
+#include <base58.h>
+#include <consensus/validation.h> // cs_main
+#include <names/common.h>
+#include <qt/configurenamedialog.h>
+#include <qt/csvmodelwriter.h>
+#include <qt/guiutil.h>
+#include <qt/nametablemodel.h>
+#include <qt/platformstyle.h>
+#include <qt/walletmodel.h>
+#include <ui_interface.h>
 #include <univalue.h>
+#include <util.h>
+#include <wallet/wallet.h>
 
 #include <QMessageBox>
 #include <QMenu>
@@ -158,7 +157,7 @@ void ManageNamesPage::on_submitNameButton_clicked()
     walletModel->writePendingNameFirstUpdate(strName, res.rand, res.hex, strData, res.toaddress);
 
     int newRowIndex;
-    model->updateEntry(name, dlg.getReturnData(), NameTableEntry::NAME_NEW, CT_NEW, "pending confirm", &newRowIndex);
+    model->updateEntry(name, dlg.getReturnData(), NameTableEntry::NAME_NEW, CT_NEW, "pending registration", &newRowIndex);
     ui->tableView->selectRow(newRowIndex);
     ui->tableView->setFocus();
 

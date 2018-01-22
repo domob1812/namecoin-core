@@ -1,7 +1,7 @@
 #ifndef MANAGENAMESPAGE_H
 #define MANAGENAMESPAGE_H
 
-#include "platformstyle.h"
+#include <qt/platformstyle.h>
 
 #include <QWidget>
 
