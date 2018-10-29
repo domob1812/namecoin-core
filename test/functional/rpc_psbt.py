@@ -19,6 +19,10 @@ class PSBTTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = False
         self.num_nodes = 3
+        self.extra_args = [["-addresstype=p2sh-segwit"]] * self.num_nodes
+
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
 
     def run_test(self):
         # Create and fund a raw tx for sending 10 BTC
