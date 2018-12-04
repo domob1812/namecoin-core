@@ -3793,6 +3793,8 @@ UniValue signrawtransactionwithwallet(const JSONRPCRequest& request)
 
     // Sign the transaction
     LOCK2(cs_main, pwallet->cs_wallet);
+    EnsureWalletIsUnlocked(pwallet);
+
     return SignTransaction(mtx, request.params[1], pwallet, false, request.params[2]);
 }
 
@@ -4593,8 +4595,15 @@ bool FillPSBT(const CWallet* pwallet, PartiallySignedTransaction& psbtx, const C
             complete &= SignPSBTInput(PublicOnlySigningProvider(pwallet), *psbtx.tx, input, sigdata, i, sighash_type);
         }
 
-        if (it != pwallet->mapWallet.end()) {
-            // Drop the unnecessary UTXO if we added both from the wallet.
+        if (sigdata.witness) {
+            // Convert the non-witness utxo to witness
+            if (input.witness_utxo.IsNull() && input.non_witness_utxo) {
+                input.witness_utxo = input.non_witness_utxo->vout[txin.prevout.n];
+            }
+        }
+
+        // If both UTXO types are present, drop the unnecessary one.
+        if (input.non_witness_utxo && !input.witness_utxo.IsNull()) {
             if (sigdata.witness) {
                 input.non_witness_utxo = nullptr;
             } else {
