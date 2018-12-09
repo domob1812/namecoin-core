@@ -40,5 +40,5 @@ CTransactionRef SendMoneyToScript(CWallet* pwallet, const CScript& scriptPubKey,
 
 UniValue getaddressinfo(const JSONRPCRequest& request);
 UniValue signrawtransactionwithwallet(const JSONRPCRequest& request);
-bool FillPSBT(const CWallet* pwallet, PartiallySignedTransaction& psbtx, const CTransaction* txConst, int sighash_type = 1, bool sign = true, bool bip32derivs = false);
+bool FillPSBT(const CWallet* pwallet, PartiallySignedTransaction& psbtx, int sighash_type = 1 /* SIGHASH_ALL */, bool sign = true, bool bip32derivs = false);
 #endif //BITCOIN_WALLET_RPCWALLET_H
