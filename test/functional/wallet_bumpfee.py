@@ -209,7 +209,7 @@ def test_maxtxfee_fails(test, rbf_node, dest_address):
     test.restart_node(1, ['-maxtxfee=0.00003'] + test.extra_args[1])
     rbf_node.walletpassphrase(WALLET_PASSPHRASE, WALLET_PASSPHRASE_TIMEOUT)
     rbfid = spend_one_input(rbf_node, dest_address)
-    assert_raises_rpc_error(-4, "Specified or calculated fee 0.0000332 is too high (cannot be higher than maxTxFee 0.00003)", rbf_node.bumpfee, rbfid)
+    assert_raises_rpc_error(-4, "Specified or calculated fee 0.000045 is too high (cannot be higher than maxTxFee 0.00003)", rbf_node.bumpfee, rbfid)
     test.restart_node(1, test.extra_args[1])
     rbf_node.walletpassphrase(WALLET_PASSPHRASE, WALLET_PASSPHRASE_TIMEOUT)
 
