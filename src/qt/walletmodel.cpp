@@ -28,6 +28,14 @@
 #include <wallet/coincontrol.h>
 #include <wallet/wallet.h> // for CRecipient
 
+// namecoin API-related includes
+// TODO: figure out which of these includes are actually still necessary for name_list
+#include <names/common.h>
+#include <names/main.h>
+#include <qt/nametablemodel.h>
+#include <rpc/client.h>
+#include <rpc/server.h>
+
 #include <stdint.h>
 
 #include <QDebug>
@@ -35,6 +43,10 @@
 #include <QSet>
 #include <QTimer>
 
+// TODO: figure out which of these includes are actually still necessary for name_list
+#include <boost/foreach.hpp>
+#include <map>
+#include <univalue.h>
 
 WalletModel::WalletModel(std::unique_ptr<interfaces::Wallet> wallet, ClientModel& client_model, const PlatformStyle *platformStyle, QObject *parent) :
     QObject(parent),
@@ -44,6 +56,7 @@ WalletModel::WalletModel(std::unique_ptr<interfaces::Wallet> wallet, ClientModel
     optionsModel(client_model.getOptionsModel()),
     addressTableModel(nullptr),
     transactionTableModel(nullptr),
+    nameTableModel(nullptr),
     recentRequestsTableModel(nullptr),
     cachedEncryptionStatus(Unencrypted),
     timer(new QTimer(this))
@@ -51,6 +64,7 @@ WalletModel::WalletModel(std::unique_ptr<interfaces::Wallet> wallet, ClientModel
     fHaveWatchOnly = m_wallet->haveWatchOnly();
     addressTableModel = new AddressTableModel(this);
     transactionTableModel = new TransactionTableModel(platformStyle, this);
+    nameTableModel = new NameTableModel(platformStyle, this);
     recentRequestsTableModel = new RecentRequestsTableModel(this);
 
     subscribeToCoreSignals();
@@ -285,6 +299,11 @@ OptionsModel *WalletModel::getOptionsModel()
 AddressTableModel *WalletModel::getAddressTableModel()
 {
     return addressTableModel;
+}
+
+NameTableModel *WalletModel::getNameTableModel()
+{
+    return nameTableModel;
 }
 
 TransactionTableModel *WalletModel::getTransactionTableModel()
