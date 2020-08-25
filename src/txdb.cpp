@@ -20,6 +20,8 @@
 
 #include <stdint.h>
 
+#include <boost/thread/thread.hpp>
+
 static const char DB_COIN = 'C';
 static const char DB_COINS = 'c';
 static const char DB_BLOCK_FILES = 'f';
