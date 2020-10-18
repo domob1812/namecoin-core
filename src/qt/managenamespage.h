@@ -51,6 +51,7 @@ private Q_SLOTS:
 
     void onCopyNameAction();
     void onCopyValueAction();
+    void onRenewNameAction();
 };
 
 #endif // MANAGENAMESPAGE_H
