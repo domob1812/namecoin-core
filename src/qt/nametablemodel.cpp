@@ -282,7 +282,7 @@ NameTableModel::emitDataChanged(int idx)
     dataChanged(index(idx, 0), index(idx, columns.length()-1));
 }
 
-QString NameTableModel::renew(const QString &name)
+QString NameTableModel::renew(const QString &name) const
 {
     std::string strName = name.toStdString();
     LogPrintf ("wallet attempting name_update: name=%s\n", strName);

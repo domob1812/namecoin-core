@@ -158,9 +158,9 @@ void ManageNamesPage::onRenewNameAction()
     if (!ctx.isValid ())
         return;
 
-    for (QModelIndexList::iterator i = indexes.begin(); i != items.end(); i++)
+    for (QModelIndexList::iterator i = indexes.begin(); i != indexes.end(); i++)
     {
-        const QString &name = i.data(Qt::EditRole).toString();
+        const QString &name = i->data(Qt::EditRole).toString();
 
         const QString err_msg = model->renew(name);
         if (!err_msg.isEmpty() && err_msg != "ABORTED")
