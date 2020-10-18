@@ -62,9 +62,6 @@ private:
     /** Notify listeners that data changed. */
     void emitDataChanged(int index);
 
-    void subscribeToCoreSignals();
-    void unsubscribeFromCoreSignals();
-
 public Q_SLOTS:
     void updateExpiration(int count, const QDateTime& blockDate, double nVerificationProgress, bool header, SynchronizationState sync_state);
     void processNewTransaction(const QModelIndex& parent, int start, int /*end*/);

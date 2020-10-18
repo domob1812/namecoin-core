@@ -33,22 +33,6 @@ namespace {
     };
 }
 
-struct NameTableEntryLessThan
-{
-    bool operator()(const NameTableEntry &a, const NameTableEntry &b) const
-    {
-        return a.name < b.name;
-    }
-    bool operator()(const NameTableEntry &a, const QString &b) const
-    {
-        return a.name < b;
-    }
-    bool operator()(const QString &a, const NameTableEntry &b) const
-    {
-        return a < b.name;
-    }
-};
-
 // Returns true if new height is better
 bool NameTableEntry::CompareHeight(int nOldHeight, int nNewHeight)
 {
@@ -96,7 +80,6 @@ public:
         // is added to name_list.
         // TODO: Set name and value encoding to hex, so that nonstandard
         // encodings don't cause errors.
-        // TODO: Make sure we use the specified wallet.
         util::Ref nameListContext;
         JSONRPCRequest nameListRequest(nameListContext);
         nameListRequest.URI = ("/wallet/" + parent->walletModel->getWalletName()).toStdString();
@@ -174,13 +157,10 @@ NameTableModel::NameTableModel(const PlatformStyle *platformStyle, WalletModel *
     connect(&walletModel->clientModel(), &ClientModel::numBlocksChanged, this, &NameTableModel::updateExpiration);
 
     connect(walletModel->getTransactionTableModel(), &TransactionTableModel::rowsInserted, this, &NameTableModel::processNewTransaction);
-
-    subscribeToCoreSignals();
 }
 
 NameTableModel::~NameTableModel()
 {
-    unsubscribeFromCoreSignals();
 }
 
 void NameTableModel::updateExpiration(int count, const QDateTime& blockDate, double nVerificationProgress, bool header, SynchronizationState sync_state)
@@ -300,20 +280,4 @@ NameTableModel::emitDataChanged(int idx)
 {
     //emit
     dataChanged(index(idx, 0), index(idx, columns.length()-1));
-}
-
-void
-NameTableModel::subscribeToCoreSignals()
-{
-    // Connect signals to wallet
-    //m_handler_transaction_changed = walletModel->wallet().handleTransactionChanged(std::bind(NotifyTransactionChanged, this, std::placeholders::_1, std::placeholders::_2));
-    //m_handler_show_progress = walletModel->wallet().handleShowProgress(std::bind(ShowProgress, this, std::placeholders::_1, std::placeholders::_2));
-}
-
-void
-NameTableModel::unsubscribeFromCoreSignals()
-{
-    // Disconnect signals from wallet
-    //m_handler_transaction_changed->disconnect();
-    //m_handler_show_progress->disconnect();
 }
