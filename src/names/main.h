@@ -23,7 +23,7 @@ class TxValidationState;
 constexpr unsigned MAX_VALUE_LENGTH = 1023;
 constexpr unsigned MAX_NAME_LENGTH = 255;
 constexpr unsigned MIN_FIRSTUPDATE_DEPTH = 12;
-constexpr unsigned MAX_VALUE_LENGTH_UI = 520;
+constexpr unsigned MAX_VALUE_LENGTH_UI = 1023;
 
 /** The amount of coins to lock in created transactions.  */
 constexpr CAmount NAME_LOCKED_AMOUNT = COIN / 100;
