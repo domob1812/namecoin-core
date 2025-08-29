@@ -9,7 +9,6 @@
 #include <names/mempool.h>
 #include <primitives/transaction.h>
 #include <script/names.h>
-#include <sync.h>
 #include <txmempool.h>
 #include <validation.h>
 #include <validationinterface.h>
@@ -48,14 +47,14 @@ public:
     ADDR = CScript () << OP_TRUE;
     OTHER_ADDR = CScript () << OP_TRUE << OP_RETURN;
 
-    ENTER_CRITICAL_SECTION (cs_main);
-    ENTER_CRITICAL_SECTION (mempool.cs);
+    cs_main.lock();
+    mempool.cs.lock();
   }
 
   ~NameMempoolTestSetup ()
   {
-    LEAVE_CRITICAL_SECTION (mempool.cs);
-    LEAVE_CRITICAL_SECTION (cs_main);
+    mempool.cs.unlock();
+    cs_main.unlock();
   }
 
   /**

@@ -706,7 +706,7 @@ static RPCHelpMan getblocktemplate()
     NodeContext& node = EnsureAnyNodeContext(request.context);
     ChainstateManager& chainman = EnsureChainman(node);
     Mining& miner = EnsureMining(node);
-    LOCK(cs_main);
+    WAIT_LOCK(cs_main, csmain_lock);
     uint256 tip{CHECK_NONFATAL(miner.getTip()).value().hash};
 
     std::string strMode = "template";
@@ -812,8 +812,8 @@ static RPCHelpMan getblocktemplate()
         }
 
         // Release lock while waiting
-        LEAVE_CRITICAL_SECTION(cs_main);
         {
+            REVERSE_LOCK(csmain_lock, cs_main);
             MillisecondsDouble checktxtime{std::chrono::minutes(1)};
             while (IsRPCRunning()) {
                 // If hashWatchedChain is not a real block hash, this will
@@ -832,8 +832,6 @@ static RPCHelpMan getblocktemplate()
                 checktxtime = std::chrono::seconds(10);
             }
         }
-        ENTER_CRITICAL_SECTION(cs_main);
-
         tip = CHECK_NONFATAL(miner.getTip()).value().hash;
 
         if (!IsRPCRunning())
@@ -1032,9 +1030,9 @@ public:
     explicit submitblock_StateCatcher(const uint256 &hashIn) : hash(hashIn), state() {}
 
 protected:
-    void BlockChecked(const CBlock& block, const BlockValidationState& stateIn) override {
-        if (block.GetHash() != hash)
-            return;
+    void BlockChecked(const std::shared_ptr<const CBlock>& block, const BlockValidationState& stateIn) override
+    {
+        if (block->GetHash() != hash) return;
         found = true;
         state = stateIn;
     }

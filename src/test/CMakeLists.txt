@@ -63,6 +63,7 @@ add_executable(test_namecoin
   net_peer_eviction_tests.cpp
   net_tests.cpp
   netbase_tests.cpp
+  node_init_tests.cpp
   node_warnings_tests.cpp
   orphanage_tests.cpp
   pcp_tests.cpp

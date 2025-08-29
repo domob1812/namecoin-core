@@ -12,62 +12,62 @@
 #include <wallet/wallet.h>
 
 namespace wallet {
-isminetype InputIsMine(const CWallet& wallet, const CTxIn& txin)
+bool InputIsMine(const CWallet& wallet, const CTxIn& txin)
 {
     AssertLockHeld(wallet.cs_wallet);
     const CWalletTx* prev = wallet.GetWalletTx(txin.prevout.hash);
     if (prev && txin.prevout.n < prev->tx->vout.size()) {
         return wallet.IsMine(prev->tx->vout[txin.prevout.n]);
     }
-    return ISMINE_NO;
+    return false;
 }
 
-bool AllInputsMine(const CWallet& wallet, const CTransaction& tx, const isminefilter& filter)
+bool AllInputsMine(const CWallet& wallet, const CTransaction& tx)
 {
     LOCK(wallet.cs_wallet);
     for (const CTxIn& txin : tx.vin) {
-        if (!(InputIsMine(wallet, txin) & filter)) return false;
+        if (!InputIsMine(wallet, txin)) return false;
     }
     return true;
 }
 
-CAmount OutputGetCredit(const CWallet& wallet, const CTxOut& txout, const isminefilter& filter)
+CAmount OutputGetCredit(const CWallet& wallet, const CTxOut& txout)
 {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
     if (CNameScript::isNameScript (txout.scriptPubKey))
         return 0;
     LOCK(wallet.cs_wallet);
-    return ((wallet.IsMine(txout) & filter) ? txout.nValue : 0);
+    return (wallet.IsMine(txout) ? txout.nValue : 0);
 }
 
-CAmount TxGetCredit(const CWallet& wallet, const CTransaction& tx, const isminefilter& filter)
+CAmount TxGetCredit(const CWallet& wallet, const CTransaction& tx)
 {
     CAmount nCredit = 0;
     for (const CTxOut& txout : tx.vout)
     {
-        nCredit += OutputGetCredit(wallet, txout, filter);
+        nCredit += OutputGetCredit(wallet, txout);
         if (!MoneyRange(nCredit))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
     }
     return nCredit;
 }
 
-std::optional<CNameScript> GetNameCredit(const CWallet& wallet, const CTxOut& txout, const isminefilter& filter)
+std::optional<CNameScript> GetNameCredit(const CWallet& wallet, const CTxOut& txout)
 {
     CNameScript op(txout.scriptPubKey);
     if (!op.isNameOp ())
         return {};
     LOCK(wallet.cs_wallet);
-    return ((wallet.IsMine(txout) & filter) ? std::optional<CNameScript>{op} : std::nullopt);
+    return (wallet.IsMine(txout) ? std::optional<CNameScript>{op} : std::nullopt);
 }
 
-std::optional<CNameScript> GetNameCredit(const CWallet& wallet, const CTransaction& tx, const isminefilter& filter)
+std::optional<CNameScript> GetNameCredit(const CWallet& wallet, const CTransaction& tx)
 {
     std::optional<CNameScript> nCredit;
     for (const CTxOut& txout : tx.vout)
     {
-        nCredit = GetNameCredit(wallet, txout, filter);
+        nCredit = GetNameCredit(wallet, txout);
         if (nCredit)
             break;
     }
@@ -122,17 +122,17 @@ CAmount TxGetChange(const CWallet& wallet, const CTransaction& tx)
     return nChange;
 }
 
-static CAmount GetCachableAmount(const CWallet& wallet, const CWalletTx& wtx, CWalletTx::AmountType type, const isminefilter& filter)
+static CAmount GetCachableAmount(const CWallet& wallet, const CWalletTx& wtx, CWalletTx::AmountType type, bool avoid_reuse)
 {
     auto& amount = wtx.m_amounts[type];
-    if (!amount.m_cached[filter]) {
-        amount.Set(filter, type == CWalletTx::DEBIT ? wallet.GetDebit(*wtx.tx, filter) : TxGetCredit(wallet, *wtx.tx, filter));
+    if (!amount.IsCached(avoid_reuse)) {
+        amount.Set(avoid_reuse, type == CWalletTx::DEBIT ? wallet.GetDebit(*wtx.tx) : TxGetCredit(wallet, *wtx.tx));
         wtx.m_is_cache_empty = false;
     }
-    return amount.m_value[filter];
+    return amount.Get(avoid_reuse);
 }
 
-CAmount CachedTxGetCredit(const CWallet& wallet, const CWalletTx& wtx, const isminefilter& filter)
+CAmount CachedTxGetCredit(const CWallet& wallet, const CWalletTx& wtx, bool avoid_reuse)
 {
     AssertLockHeld(wallet.cs_wallet);
 
@@ -140,38 +140,28 @@ CAmount CachedTxGetCredit(const CWallet& wallet, const CWalletTx& wtx, const ism
     if (wallet.IsTxImmatureCoinBase(wtx))
         return 0;
 
-    CAmount credit = 0;
-    const isminefilter get_amount_filter{filter & ISMINE_ALL};
-    if (get_amount_filter) {
-        // GetBalance can assume transactions in mapWallet won't change
-        credit += GetCachableAmount(wallet, wtx, CWalletTx::CREDIT, get_amount_filter);
-    }
-    return credit;
+    // GetBalance can assume transactions in mapWallet won't change
+    return GetCachableAmount(wallet, wtx, CWalletTx::CREDIT, avoid_reuse);
 }
 
-std::optional<CNameScript> TxGetNameCredit(const CWallet& wallet, const CWalletTx& wtx, const isminefilter& filter)
+std::optional<CNameScript> TxGetNameCredit(const CWallet& wallet, const CWalletTx& wtx)
 {
     // TODO: Caching like what GetCredit does.
-    return GetNameCredit(wallet, *wtx.tx, filter);
+    return GetNameCredit(wallet, *wtx.tx);
 }
 
-CAmount CachedTxGetDebit(const CWallet& wallet, const CWalletTx& wtx, const isminefilter& filter)
+CAmount CachedTxGetDebit(const CWallet& wallet, const CWalletTx& wtx, bool avoid_reuse)
 {
     if (wtx.tx->vin.empty())
         return 0;
 
-    CAmount debit = 0;
-    const isminefilter get_amount_filter{filter & ISMINE_ALL};
-    if (get_amount_filter) {
-        debit += GetCachableAmount(wallet, wtx, CWalletTx::DEBIT, get_amount_filter);
-    }
-    return debit;
+    return GetCachableAmount(wallet, wtx, CWalletTx::DEBIT, avoid_reuse);
 }
 
-std::optional<CNameScript> TxGetNameDebit(const CWallet& wallet, const CWalletTx& wtx, const isminefilter& filter)
+std::optional<CNameScript> TxGetNameDebit(const CWallet& wallet, const CWalletTx& wtx)
 {
     // TODO: Caching like what GetDebit does.
-    return wallet.GetNameDebit(*wtx.tx, filter);
+    return wallet.GetNameDebit(*wtx.tx);
 }
 
 CAmount CachedTxGetChange(const CWallet& wallet, const CWalletTx& wtx)
@@ -185,7 +175,7 @@ CAmount CachedTxGetChange(const CWallet& wallet, const CWalletTx& wtx)
 
 void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
                   std::list<COutputEntry>& listReceived,
-                  std::list<COutputEntry>& listSent, CAmount& nFee, const isminefilter& filter,
+                  std::list<COutputEntry>& listSent, CAmount& nFee,
                   bool include_change)
 {
     nFee = 0;
@@ -193,7 +183,7 @@ void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
     listSent.clear();
 
     // Compute fee:
-    CAmount nDebit = CachedTxGetDebit(wallet, wtx, filter);
+    CAmount nDebit = CachedTxGetDebit(wallet, wtx, /*avoid_reuse=*/false);
     if (nDebit > 0) // debit>0 means we signed/sent this transaction
     {
         CAmount nValueOut = wtx.tx->GetValueOut(true);
@@ -205,7 +195,7 @@ void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
     for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i)
     {
         const CTxOut& txout = wtx.tx->vout[i];
-        isminetype fIsMine = wallet.IsMine(txout);
+        bool ismine = wallet.IsMine(txout);
         const CNameScript nameOp(txout.scriptPubKey);
         // Only need to handle txouts if AT LEAST one of these is true:
         //   1) they debit from us (sent)
@@ -216,7 +206,7 @@ void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
             if (!include_change && OutputIsChange(wallet, txout) && !nameOp.isNameOp())
                 continue;
         }
-        else if (!(fIsMine & filter))
+        else if (!ismine)
             continue;
 
         // In either case, we need to get the destination address
@@ -247,16 +237,15 @@ void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
 
         // If we are receiving the output, add it as a "received" entry
         // For names, only do this if we did not also add it as "sent"
-        if ((fIsMine & filter)
-            && (!nameOp.isNameOp() || !(nDebit > 0)))
+        if (ismine && (!nameOp.isNameOp() || !(nDebit > 0)))
             listReceived.push_back(output);
     }
 
 }
 
-bool CachedTxIsFromMe(const CWallet& wallet, const CWalletTx& wtx, const isminefilter& filter)
+bool CachedTxIsFromMe(const CWallet& wallet, const CWalletTx& wtx)
 {
-    return (CachedTxGetDebit(wallet, wtx, filter) > 0);
+    return (CachedTxGetDebit(wallet, wtx, /*avoid_reuse=*/false) > 0);
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
@@ -270,7 +259,7 @@ bool CachedTxIsTrusted(const CWallet& wallet, const CWalletTx& wtx, std::set<Txi
     if (wtx.isConfirmed()) return true;
     if (wtx.isBlockConflicted()) return false;
     // using wtx's cached debit
-    if (!wallet.m_spend_zero_conf_change || !CachedTxIsFromMe(wallet, wtx, ISMINE_ALL)) return false;
+    if (!wallet.m_spend_zero_conf_change || !CachedTxIsFromMe(wallet, wtx)) return false;
 
     // Don't trust unconfirmed transactions from us unless they are in the mempool.
     if (!wtx.InMempool()) return false;
@@ -283,7 +272,7 @@ bool CachedTxIsTrusted(const CWallet& wallet, const CWalletTx& wtx, std::set<Txi
         if (parent == nullptr) return false;
         const CTxOut& parentOut = parent->tx->vout[txin.prevout.n];
         // Check that this specific input being spent is trusted
-        if (wallet.IsMine(parentOut) != ISMINE_SPENDABLE) return false;
+        if (!wallet.IsMine(parentOut)) return false;
         // If we've already trusted this parent, continue
         if (trusted_parents.count(parent->GetHash())) continue;
         // Recurse to check that the parent is also trusted
@@ -318,13 +307,7 @@ Balance GetBalance(const CWallet& wallet, const int min_depth, bool avoid_reuse)
 
             if (!wallet.IsSpent(outpoint) && (allow_used_addresses || !wallet.IsSpentKey(txo.GetTxOut().scriptPubKey))) {
                 // Get the amounts for mine
-                CAmount credit_mine = 0;
-                if (txo.GetIsMine() == ISMINE_SPENDABLE) {
-                    credit_mine = txo.GetTxOut().nValue;
-                } else {
-                    // We shouldn't see any other isminetypes
-                    Assume(false);
-                }
+                CAmount credit_mine = txo.GetTxOut().nValue;
 
                 // Set the amounts in the return object
                 if (wallet.IsTxImmatureCoinBase(wtx) && wtx.isConfirmed()) {
@@ -357,7 +340,7 @@ std::map<CTxDestination, CAmount> GetAddressBalances(const CWallet& wallet)
             if (wallet.IsTxImmatureCoinBase(wtx)) continue;
 
             int nDepth = wallet.GetTxDepthInMainChain(wtx);
-            if (nDepth < (CachedTxIsFromMe(wallet, wtx, ISMINE_ALL) ? 0 : 1)) continue;
+            if (nDepth < (CachedTxIsFromMe(wallet, wtx) ? 0 : 1)) continue;
 
             CTxDestination addr;
             Assume(wallet.IsMine(txo.GetTxOut()));

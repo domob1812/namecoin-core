@@ -31,6 +31,7 @@
 #include <node/types.h>
 #include <outputtype.h>
 #include <policy/feerate.h>
+#include <policy/truc_policy.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <psbt.h>
@@ -1216,6 +1217,23 @@ bool CWallet::TransactionCanBeAbandoned(const Txid& hashTx) const
     return wtx && !wtx->isAbandoned() && GetTxDepthInMainChain(*wtx) == 0 && !wtx->InMempool();
 }
 
+void CWallet::UpdateTrucSiblingConflicts(const CWalletTx& parent_wtx, const Txid& child_txid, bool add_conflict) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
+{
+    // Find all other txs in our wallet that spend utxos from this parent
+    // so that we can mark them as mempool-conflicted by this new tx.
+    for (long unsigned int i = 0; i < parent_wtx.tx->vout.size(); i++) {
+        for (auto range = mapTxSpends.equal_range(COutPoint(parent_wtx.tx->GetHash(), i)); range.first != range.second; range.first++) {
+            const Txid& sibling_txid = range.first->second;
+            // Skip the child_tx itself
+            if (sibling_txid == child_txid) continue;
+            RecursiveUpdateTxState(/*batch=*/nullptr, sibling_txid, [&child_txid, add_conflict](CWalletTx& wtx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet) {
+                return add_conflict ? (wtx.mempool_conflicts.insert(child_txid).second ? TxUpdate::CHANGED : TxUpdate::UNCHANGED)
+                                    : (wtx.mempool_conflicts.erase(child_txid) ? TxUpdate::CHANGED : TxUpdate::UNCHANGED);
+            });
+        }
+    }
+}
+
 void CWallet::MarkInputsDirty(const CTransactionRef& tx)
 {
     for (const CTxIn& txin : tx->vin) {
@@ -1371,6 +1389,25 @@ void CWallet::transactionAddedToMempool(const CTransactionRef& tx) {
                 return wtx.mempool_conflicts.insert(txid).second ? TxUpdate::CHANGED : TxUpdate::UNCHANGED;
             });
         }
+
+    }
+
+    if (tx->version == TRUC_VERSION) {
+        // Unconfirmed TRUC transactions are only allowed a 1-parent-1-child topology.
+        // For any unconfirmed v3 parents (there should be a maximum of 1 except in reorgs),
+        // record this child so the wallet doesn't try to spend any other outputs
+        for (const CTxIn& tx_in : tx->vin) {
+            auto parent_it = mapWallet.find(tx_in.prevout.hash);
+            if (parent_it != mapWallet.end()) {
+                CWalletTx& parent_wtx = parent_it->second;
+                if (parent_wtx.isUnconfirmed()) {
+                    parent_wtx.truc_child_in_mempool = tx->GetHash();
+                    // Even though these siblings do not spend the same utxos, they can't
+                    // be present in the mempool at the same time because of TRUC policy rules
+                    UpdateTrucSiblingConflicts(parent_wtx, txid, /*add_conflict=*/true);
+                }
+            }
+        }
     }
 }
 
@@ -1422,6 +1459,23 @@ void CWallet::transactionRemovedFromMempool(const CTransactionRef& tx, MemPoolRe
             RecursiveUpdateTxState(/*batch=*/nullptr, spent_id, [&txid](CWalletTx& wtx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet) {
                 return wtx.mempool_conflicts.erase(txid) ? TxUpdate::CHANGED : TxUpdate::UNCHANGED;
             });
+        }
+    }
+
+    if (tx->version == TRUC_VERSION) {
+        // If this tx has a parent, unset its truc_child_in_mempool to make it possible
+        // to spend from the parent again. If this tx was replaced by another
+        // child of the same parent, transactionAddedToMempool
+        // will update truc_child_in_mempool
+        for (const CTxIn& tx_in : tx->vin) {
+            auto parent_it = mapWallet.find(tx_in.prevout.hash);
+            if (parent_it != mapWallet.end()) {
+                CWalletTx& parent_wtx = parent_it->second;
+                if (parent_wtx.truc_child_in_mempool == tx->GetHash()) {
+                    parent_wtx.truc_child_in_mempool = std::nullopt;
+                    UpdateTrucSiblingConflicts(parent_wtx, txid, /*add_conflict=*/false);
+                }
+            }
         }
     }
 }
@@ -1519,20 +1573,20 @@ void CWallet::BlockUntilSyncedToCurrentChain() const {
 }
 
 // Note that this function doesn't distinguish between a 0-valued input,
-// and a not-"is mine" (according to the filter) input.
-CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter& filter) const
+// and a not-"is mine" input.
+CAmount CWallet::GetDebit(const CTxIn &txin) const
 {
     LOCK(cs_wallet);
     auto txo = GetTXO(txin.prevout);
     if (txo && CNameScript::isNameScript(txo->GetTxOut().scriptPubKey))
         return 0;
-    if (txo && (txo->GetIsMine() & filter)) {
+    if (txo) {
         return txo->GetTxOut().nValue;
     }
     return 0;
 }
 
-std::optional<CNameScript> CWallet::GetNameDebit(const CTxIn &txin, const isminefilter& filter) const
+std::optional<CNameScript> CWallet::GetNameDebit(const CTxIn &txin) const
 {
     LOCK(cs_wallet);
     auto txo = GetTXO(txin.prevout);
@@ -1544,25 +1598,22 @@ std::optional<CNameScript> CWallet::GetNameDebit(const CTxIn &txin, const ismine
     if (!op.isNameOp())
         return {};
 
-    if (txo->GetIsMine() & filter)
-        return op;
-
     return {};
 }
 
-isminetype CWallet::IsMine(const CTxOut& txout) const
+bool CWallet::IsMine(const CTxOut& txout) const
 {
     AssertLockHeld(cs_wallet);
     return IsMine(txout.scriptPubKey);
 }
 
-isminetype CWallet::IsMine(const CTxDestination& dest) const
+bool CWallet::IsMine(const CTxDestination& dest) const
 {
     AssertLockHeld(cs_wallet);
     return IsMine(GetScriptForDestination(dest));
 }
 
-isminetype CWallet::IsMine(const CScript& fullScript) const
+bool CWallet::IsMine(const CScript& fullScript) const
 {
     AssertLockHeld(cs_wallet);
     const CScript script = CNameScript(fullScript).getAddress();
@@ -1570,15 +1621,15 @@ isminetype CWallet::IsMine(const CScript& fullScript) const
     // Search the cache so that IsMine is called only on the relevant SPKMs instead of on everything in m_spk_managers
     const auto& it = m_cached_spks.find(script);
     if (it != m_cached_spks.end()) {
-        isminetype res = ISMINE_NO;
+        bool res = false;
         for (const auto& spkm : it->second) {
-            res = std::max(res, spkm->IsMine(script));
+            res = res || spkm->IsMine(script);
         }
-        Assume(res == ISMINE_SPENDABLE);
+        Assume(res);
         return res;
     }
 
-    return ISMINE_NO;
+    return false;
 }
 
 bool CWallet::IsMine(const CTransaction& tx) const
@@ -1590,42 +1641,42 @@ bool CWallet::IsMine(const CTransaction& tx) const
     return false;
 }
 
-isminetype CWallet::IsMine(const COutPoint& outpoint) const
+bool CWallet::IsMine(const COutPoint& outpoint) const
 {
     AssertLockHeld(cs_wallet);
     auto wtx = GetWalletTx(outpoint.hash);
     if (!wtx) {
-        return ISMINE_NO;
+        return false;
     }
     if (outpoint.n >= wtx->tx->vout.size()) {
-        return ISMINE_NO;
+        return false;
     }
     return IsMine(wtx->tx->vout[outpoint.n]);
 }
 
 bool CWallet::IsFromMe(const CTransaction& tx) const
 {
-    return (GetDebit(tx, ISMINE_ALL) > 0);
+    return (GetDebit(tx) > 0);
 }
 
-CAmount CWallet::GetDebit(const CTransaction& tx, const isminefilter& filter) const
+CAmount CWallet::GetDebit(const CTransaction& tx) const
 {
     CAmount nDebit = 0;
     for (const CTxIn& txin : tx.vin)
     {
-        nDebit += GetDebit(txin, filter);
+        nDebit += GetDebit(txin);
         if (!MoneyRange(nDebit))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
     }
     return nDebit;
 }
 
-std::optional<CNameScript> CWallet::GetNameDebit(const CTransaction& tx, const isminefilter& filter) const
+std::optional<CNameScript> CWallet::GetNameDebit(const CTransaction& tx) const
 {
     std::optional<CNameScript> nDebit;
     for (const CTxIn& txin : tx.vin)
     {
-        nDebit = GetNameDebit(txin, filter);
+        nDebit = GetNameDebit(txin);
         if (nDebit)
             break;
     }
@@ -2360,7 +2411,7 @@ bool CWallet::SetAddressBookWithDB(WalletBatch& batch, const CTxDestination& add
 
         CAddressBookData& record = mi != m_address_book.end() ? mi->second : m_address_book[address];
         record.SetLabel(strName);
-        is_mine = IsMine(address) != ISMINE_NO;
+        is_mine = IsMine(address);
         if (new_purpose) { /* update purpose only if requested */
             record.purpose = new_purpose;
         }
@@ -4496,15 +4547,11 @@ void CWallet::RefreshTXOsFromTx(const CWalletTx& wtx)
     AssertLockHeld(cs_wallet);
     for (uint32_t i = 0; i < wtx.tx->vout.size(); ++i) {
         const CTxOut& txout = wtx.tx->vout.at(i);
-        isminetype ismine = IsMine(txout);
-        if (ismine == ISMINE_NO) {
-            continue;
-        }
+        if (!IsMine(txout)) continue;
         COutPoint outpoint(wtx.GetHash(), i);
         if (m_txos.contains(outpoint)) {
-            m_txos.at(outpoint).SetIsMine(ismine);
         } else {
-            m_txos.emplace(outpoint, WalletTXO{wtx, txout, ismine});
+            m_txos.emplace(outpoint, WalletTXO{wtx, txout});
         }
     }
 }
