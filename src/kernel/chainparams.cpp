@@ -140,10 +140,10 @@ public:
 
         // The best chain should have at least this much work.
         // The value is the chain work of the Namecoin mainnet chain at height
-        // 762'000, with best block hash:
-        // 94c093af984579ccd885eab4e4a2914dd7619970f87d1fdaaf122dc91c215769
-        consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000000000720852f45db06485eac283a8"};
-        consensus.defaultAssumeValid = uint256{"94c093af984579ccd885eab4e4a2914dd7619970f87d1fdaaf122dc91c215769"}; // 762'000
+        // 789'000, with best block hash:
+        // 58179f232d479647269d7a37bc8977e1dc84159ed325b175ec5c17509032c74d
+        consensus.nMinimumChainWork = uint256{"00000000000000000000000000000000000000008bc5cfceb24bea04dda51afc"};
+        consensus.defaultAssumeValid = uint256{"58179f232d479647269d7a37bc8977e1dc84159ed325b175ec5c17509032c74d"}; // 789'000
 
         consensus.nAuxpowChainId = 0x0001;
         consensus.nAuxpowStartHeight = 19200;
@@ -163,7 +163,7 @@ public:
         pchMessageStart[3] = 0xfe;
         nDefaultPort = 8334;
         nPruneAfterHeight = 100000;
-        m_assumed_blockchain_size = 8;
+        m_assumed_blockchain_size = 9;
         m_assumed_chain_state_size = 1;
 
         genesis = CreateGenesisBlock(1303000001, 0xa21ea192u, 0x1c007fff, 1, 50 * COIN);
@@ -200,10 +200,10 @@ public:
         m_assumeutxo_data = {};
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 4096 94c093af984579ccd885eab4e4a2914dd7619970f87d1fdaaf122dc91c215769
-            .nTime    = 1741273217,
-            .tx_count = 8379714,
-            .dTxRate  = 0.01284092389901117,
+            // Data from RPC: getchaintxstats 4096 58179f232d479647269d7a37bc8977e1dc84159ed325b175ec5c17509032c74d
+            .nTime    = 1757179808,
+            .tx_count = 8708594,
+            .dTxRate  = 0.0337049606553807,
         };
 
         /* See also doc/NamecoinBugs.txt for more explanation on the
@@ -409,8 +409,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].threshold = 1512; // 75%
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].period = 2016;
 
-        consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000000000000001d6dce8651b6094e4c1"};
-        consensus.defaultAssumeValid = uint256{"0000000000003ed4f08dbdf6f7d6b271a6bcffce25675cb40aa9fa43179a89f3"}; // 72600
+        consensus.nMinimumChainWork = uint256{"00000000000000000000000000000000000000000000034a4690fe592dc49c7c"};
+        consensus.defaultAssumeValid = uint256{"000000000000000180a58e7fa3b0db84b5ea76377524894f53660d93ac839d9b"}; // 91000
 
         pchMessageStart[0] = 0x1c;
         pchMessageStart[1] = 0x16;
@@ -418,8 +418,8 @@ public:
         pchMessageStart[3] = 0x28;
         nDefaultPort = 48333;
         nPruneAfterHeight = 1000;
-        m_assumed_blockchain_size = 11;
-        m_assumed_chain_state_size = 1;
+        m_assumed_blockchain_size = 22;
+        m_assumed_chain_state_size = 2;
 
         /* FIXME: Update below and in general testnet4 */
         genesis = CreateTestnetGenesisBlock(1296688602, 0x16ec0bff, 0x1d07fff8, 1, 50 * COIN);
@@ -447,14 +447,19 @@ public:
         m_is_mockable_chain = false;
 
         m_assumeutxo_data = {
-            {}
+            {
+                .height = 90'000,
+                .hash_serialized = AssumeutxoHash{uint256{"784fb5e98241de66fdd429f4392155c9e7db5c017148e66e8fdbc95746f8b9b5"}},
+                .m_chain_tx_count = 11347043,
+                .blockhash = consteval_ctor(uint256{"0000000002ebe8bcda020e0dd6ccfbdfac531d2f6a81457191b99fc2df2dbe3b"}),
+            }
         };
 
         chainTxData = ChainTxData{
-            // Data from RPC: getchaintxstats 4096 0000000000003ed4f08dbdf6f7d6b271a6bcffce25675cb40aa9fa43179a89f3
-            .nTime    = 1741070246,
-            .tx_count = 7653966,
-            .dTxRate  = 1.239174414591965,
+            // Data from RPC: getchaintxstats 4096 000000000000000180a58e7fa3b0db84b5ea76377524894f53660d93ac839d9b
+            .nTime    = 1752470331,
+            .tx_count = 11414302,
+            .dTxRate  = 0.2842619757327476,
         };
     }
 
@@ -483,15 +488,15 @@ public:
             //vSeeds.emplace_back("seed.signet.bitcoin.sprovoost.nl.");
             //vSeeds.emplace_back("seed.signet.achownodes.xyz."); // Ava Chow, only supports x1, x5, x9, x49, x809, x849, xd, x400, x404, x408, x448, xc08, xc48, x40c
 
-            consensus.nMinimumChainWork = uint256{"000000000000000000000000000000000000000000000000000002b517f3d1a1"};
-            consensus.defaultAssumeValid = uint256{"000000895a110f46e59eb82bbc5bfb67fa314656009c295509c21b4999f5180a"}; // 237722
-            m_assumed_blockchain_size = 9;
-            m_assumed_chain_state_size = 1;
+            consensus.nMinimumChainWork = uint256{"0000000000000000000000000000000000000000000000000000067d328e681a"};
+            consensus.defaultAssumeValid = uint256{"000000128586e26813922680309f04e1de713c7542fee86ed908f56368aefe2e"}; // 267665
+            m_assumed_blockchain_size = 20;
+            m_assumed_chain_state_size = 4;
             chainTxData = ChainTxData{
-                // Data from RPC: getchaintxstats 4096 000000895a110f46e59eb82bbc5bfb67fa314656009c295509c21b4999f5180a
-                .nTime    = 1741019645,
-                .tx_count = 16540736,
-                .dTxRate  = 1.064918879911595,
+                // Data from RPC: getchaintxstats 4096 000000128586e26813922680309f04e1de713c7542fee86ed908f56368aefe2e
+                .nTime    = 1756723017,
+                .tx_count = 26185472,
+                .dTxRate  = 0.7452721495389969,
             };
         } else {
             bin = *options.challenge;
