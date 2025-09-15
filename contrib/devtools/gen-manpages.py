@@ -9,6 +9,7 @@ import tempfile
 import argparse
 
 BINARIES = [
+#'bin/namecoin',
 'bin/namecoind',
 'bin/namecoin-cli',
 'bin/namecoin-tx',
