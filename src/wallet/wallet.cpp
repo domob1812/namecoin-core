@@ -1656,7 +1656,18 @@ bool CWallet::IsMine(const COutPoint& outpoint) const
 
 bool CWallet::IsFromMe(const CTransaction& tx) const
 {
-    return (GetDebit(tx) > 0);
+    LOCK(cs_wallet);
+    for (const CTxIn& txin : tx.vin) {
+        const auto txo = GetTXO(txin.prevout);
+        /* We only want to class a transaction as "from me" if it spends
+           coins.  If it is only sending a name, this is an edge case e.g.
+           for atomic name transactions.  If we classed this as from me, then
+           it would break some other logic (e.g. fee calculation in the
+           gettransaction() RPC).  */
+        if (txo && !CNameScript(txo->GetTxOut().scriptPubKey).isNameOp())
+            return true;
+    }
+    return false;
 }
 
 CAmount CWallet::GetDebit(const CTransaction& tx) const
