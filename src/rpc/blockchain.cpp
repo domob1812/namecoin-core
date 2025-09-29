@@ -198,7 +198,7 @@ UniValue blockheaderToJSON(const BlockManager& blockman, const CBlockIndex& tip,
     result.pushKV("confirmations", confirmations);
     result.pushKV("height", blockindex.nHeight);
     result.pushKV("mediantime", blockindex.GetMedianTimePast());
-    result.pushKV("target", GetTarget(tip, pow_limit).GetHex());
+    result.pushKV("target", GetTarget(blockindex, pow_limit).GetHex());
     result.pushKV("chainwork", blockindex.nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex.nTx);
 
