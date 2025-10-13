@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2023 Daniel Kraft
+// Copyright (c) 2014-2025 Daniel Kraft
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -61,7 +61,7 @@ getTestAddress ()
 bool
 CheckNameTransaction (const CMutableTransaction& mtx, const unsigned nHeight,
                       const CCoinsView& view,
-                      TxValidationState& state, const unsigned flags)
+                      TxValidationState& state, const script_verify_flags flags)
 {
   const CTransaction tx(mtx);
   return CheckNameTransaction (tx, nHeight, view, state, flags);
@@ -733,7 +733,8 @@ BOOST_AUTO_TEST_CASE (name_firstupdate_salt_length)
 
   /* Builds and checks a firstupdate transaction for our test name and
      the given rand value and verify flags.  */
-  const auto checkRand = [&] (const valtype& rand, const unsigned flags)
+  const auto checkRand = [&] (const valtype& rand,
+                              const script_verify_flags flags)
     {
       CCoinsViewCache view(&dummyView);
 

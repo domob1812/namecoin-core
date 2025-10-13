@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2024 Daniel Kraft
+// Copyright (c) 2014-2025 Daniel Kraft
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -80,9 +80,9 @@ CNameTxUndo::apply (CCoinsViewCache& view) const
 bool
 CheckNameTransaction (const CTransaction& tx, unsigned nHeight,
                       const CCoinsView& view,
-                      TxValidationState& state, unsigned flags)
+                      TxValidationState& state, const script_verify_flags flags)
 {
-  const bool fMempool = (flags & SCRIPT_VERIFY_NAMES_MEMPOOL);
+  const bool fMempool = static_cast<bool> (flags & SCRIPT_VERIFY_NAMES_MEMPOOL);
 
   /* Ignore historic bugs.  */
   CChainParams::BugType type;
@@ -259,7 +259,8 @@ CheckNameTransaction (const CTransaction& tx, unsigned nHeight,
                               "NAME_FIRSTUPDATE on immature NAME_NEW");
     }
 
-  const bool requireLongSalt = (flags & SCRIPT_VERIFY_NAMES_LONG_SALT);
+  const bool requireLongSalt
+      = static_cast<bool> (flags & SCRIPT_VERIFY_NAMES_LONG_SALT);
   if (requireLongSalt && nameOpOut.getOpRand ().size () < 20)
     return state.Invalid (TxValidationResult::TX_CONSENSUS,
                           "tx-firstupdate-invalid-rand",

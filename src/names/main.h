@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2021 Daniel Kraft
+// Copyright (c) 2014-2025 Daniel Kraft
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,6 +8,7 @@
 #include <consensus/amount.h>
 #include <names/common.h>
 #include <primitives/transaction.h>
+#include <script/verify_flags.h>
 #include <serialize.h>
 
 #include <set>
@@ -90,7 +91,7 @@ public:
  */
 bool CheckNameTransaction (const CTransaction& tx, unsigned nHeight,
                            const CCoinsView& view,
-                           TxValidationState& state, unsigned flags);
+                           TxValidationState& state, script_verify_flags flags);
 
 /**
  * Apply the changes of a name transaction to the name database.
