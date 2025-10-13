@@ -115,7 +115,7 @@ For the period during which the notes are being edited on the wiki, the version 
 
 Generate list of authors:
 
-    git log --format='- %aN' v(current version, e.g. 25.0)..nc(new version, e.g. 25.1) | grep -v 'merge-script' | sort -fiu
+    git log --format='- %aN' v(current version, e.g. 29.0)..nc(new version, e.g. 30.0) | grep -v 'merge-script' | sort -fiu
 
 ### Setup and perform Guix builds
 
