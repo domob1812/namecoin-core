@@ -2680,7 +2680,7 @@ bool PeerManagerImpl::TryLowWorkHeadersSync(Peer& peer, CNode& pfrom, const CBlo
             // advancing to the first unknown header would be a small effect.
             LOCK(peer.m_headers_sync_mutex);
             peer.m_headers_sync.reset(new HeadersSyncState(peer.m_id, m_chainparams.GetConsensus(),
-                chain_start_header, minimum_chain_work));
+                m_chainparams.HeadersSync(), chain_start_header, minimum_chain_work));
 
             // Now a HeadersSyncState object for tracking this synchronization
             // is created, process the headers using it as normal. Failures are
@@ -4149,6 +4149,11 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
     if (msg_type == NetMsgType::GETBLOCKTXN) {
         BlockTransactionsRequest req;
         vRecv >> req;
+        // Verify differential encoding invariant: indexes must be strictly increasing
+        // DifferenceFormatter should guarantee this property during deserialization
+        for (size_t i = 1; i < req.indexes.size(); ++i) {
+            Assume(req.indexes[i] > req.indexes[i-1]);
+        }
 
         std::shared_ptr<const CBlock> recent_block;
         {

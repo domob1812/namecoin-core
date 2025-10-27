@@ -62,6 +62,15 @@ struct ChainTxData {
     double dTxRate;   //!< estimated number of transactions per second after that timestamp
 };
 
+//! Configuration for headers sync memory usage.
+struct HeadersSyncParams {
+    //! Distance in blocks between header commitments.
+    size_t commitment_period{0};
+    //! Minimum number of validated headers to accumulate in the redownload
+    //! buffer before feeding them into the permanent block index.
+    size_t redownload_buffer_size{0};
+};
+
 /**
  * CChainParams defines various tweakable parameters of a given instance of the
  * Bitcoin system.
@@ -125,6 +134,7 @@ public:
     const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
     const std::string& Bech32HRP() const { return bech32_hrp; }
     const std::vector<uint8_t>& FixedSeeds() const { return vFixedSeeds; }
+    const HeadersSyncParams& HeadersSync() const { return m_headers_sync_params; }
 
     std::optional<AssumeutxoData> AssumeutxoForHeight(int height) const
     {
@@ -196,6 +206,7 @@ protected:
     bool m_is_mockable_chain;
     std::vector<AssumeutxoData> m_assumeutxo_data;
     ChainTxData chainTxData;
+    HeadersSyncParams m_headers_sync_params;
 
     /* Map (block height, txid) pairs for buggy transactions onto their
        bug type value.  */
