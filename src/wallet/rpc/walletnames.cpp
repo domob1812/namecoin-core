@@ -884,7 +884,7 @@ queuerawtransaction ()
       std::string unused_err_string;
       // Don't check max fee.
       const node::TransactionError err = BroadcastTransaction(node, txParsed, unused_err_string,
-        /* max_tx_fee */ 0, /* relay */ true, /* wait_callback */ false);
+        /* max_tx_fee */ 0, node::TxBroadcast::MEMPOOL_AND_BROADCAST_TO_ALL, /* wait_callback */ false);
       assert(err == node::TransactionError::OK);
 
       return hashTx.GetHex();

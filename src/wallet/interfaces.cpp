@@ -10,7 +10,7 @@
 #include <interfaces/handler.h>
 #include <node/context.h>
 #include <node/types.h>
-#include <policy/fees.h>
+#include <policy/fees/block_policy_estimator.h>
 #include <primitives/transaction.h>
 #include <rpc/names.h>
 #include <rpc/server.h>

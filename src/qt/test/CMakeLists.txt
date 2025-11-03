@@ -14,6 +14,8 @@ add_executable(test_namecoin-qt
   ../../init/bitcoin-qt.cpp
 )
 
+add_windows_application_manifest(test_namecoin-qt)
+
 target_link_libraries(test_namecoin-qt
   core_interface
   bitcoinqt

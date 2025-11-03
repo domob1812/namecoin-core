@@ -56,6 +56,8 @@ add_executable(bench_namecoin
   verify_script.cpp
 )
 
+add_windows_application_manifest(bench_bitcoin)
+
 include(TargetDataSources)
 target_raw_data_sources(bench_namecoin NAMESPACE benchmark::data
   data/block413567.raw
