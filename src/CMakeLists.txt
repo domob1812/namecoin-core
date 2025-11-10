@@ -415,28 +415,30 @@ endif()
 
 if(BUILD_KERNEL_LIB)
   add_subdirectory(kernel)
-endif()
-
-if(BUILD_UTIL_CHAINSTATE)
-  add_executable(namecoin-chainstate
-    bitcoin-chainstate.cpp
-  )
-  add_windows_application_manifest(bitcoin-chainstate)
-  # TODO: The `SKIP_BUILD_RPATH` property setting can be deleted
-  #       in the future after reordering Guix script commands to
-  #       perform binary checks after the installation step.
-  # Relevant discussions:
-  # - https://github.com/hebasto/bitcoin/pull/236#issuecomment-2183120953
-  # - https://github.com/bitcoin/bitcoin/pull/30312#issuecomment-2191235833
-  set_target_properties(namecoin-chainstate PROPERTIES
-    SKIP_BUILD_RPATH OFF
-  )
-  target_link_libraries(namecoin-chainstate
-    PRIVATE
-      core_interface
-      namecoinkernel
-  )
-  install_binary_component(bitcoin-chainstate INTERNAL)
+  if (BUILD_KERNEL_TEST)
+    add_subdirectory(test/kernel)
+  endif()
+  if(BUILD_UTIL_CHAINSTATE)
+    add_executable(namecoin-chainstate
+      bitcoin-chainstate.cpp
+    )
+    add_windows_application_manifest(namecoin-chainstate)
+    # TODO: The `SKIP_BUILD_RPATH` property setting can be deleted
+    #       in the future after reordering Guix script commands to
+    #       perform binary checks after the installation step.
+    # Relevant discussions:
+    # - https://github.com/hebasto/bitcoin/pull/236#issuecomment-2183120953
+    # - https://github.com/bitcoin/bitcoin/pull/30312#issuecomment-2191235833
+    set_target_properties(namecoin-chainstate PROPERTIES
+      SKIP_BUILD_RPATH OFF
+    )
+    target_link_libraries(namecoin-chainstate
+      PRIVATE
+        core_interface
+        namecoinkernel
+    )
+    install_binary_component(namecoin-chainstate INTERNAL)
+  endif()
 endif()
 
 

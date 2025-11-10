@@ -185,6 +185,8 @@ if(ENABLE_IPC)
       ipc_tests.cpp
   )
   target_link_libraries(test_namecoin bitcoin_ipc_test bitcoin_ipc)
+
+  configure_file(.clang-tidy.in .clang-tidy USE_SOURCE_PERMISSIONS COPYONLY)
 endif()
 
 function(add_boost_test source_file)

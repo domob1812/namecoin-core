@@ -201,6 +201,7 @@ static const std::map<std::string, BCLog::LogFlags, std::less<>> LOG_CATEGORIES_
     {"txreconciliation", BCLog::TXRECONCILIATION},
     {"scan", BCLog::SCAN},
     {"txpackages", BCLog::TXPACKAGES},
+    {"kernel", BCLog::KERNEL},
     {"names", BCLog::NAMES},
 };
 

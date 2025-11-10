@@ -35,6 +35,14 @@ jobs:
     outputs:
       provider: ${{ steps.runners.outputs.provider }}
     steps:
+      - name: Annotate with pull request number
+        # This annotation is machine-readable and can be used to assign a check
+        # run to its corresponding pull request. Running in one check run is
+        # sufficient for each check suite.
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "::notice title=debug_pull_request_number_str::${{ github.event.number }}"
+          fi
       - id: runners
         run: |
           if [[ "${REPO_USE_CIRRUS_RUNNERS}" == "${{ github.repository }}" ]]; then
@@ -197,7 +205,7 @@ jobs:
         job-type: [standard, fuzz]
         include:
           - job-type: standard
-            generate-options: '-DBUILD_GUI=ON -DWITH_ZMQ=ON -DBUILD_BENCH=ON -DWERROR=ON'
+            generate-options: '-DBUILD_GUI=ON -DWITH_ZMQ=ON -DBUILD_BENCH=ON -DBUILD_KERNEL_LIB=ON -DBUILD_UTIL_CHAINSTATE=ON -DWERROR=ON'
             job-name: 'Windows native, VS 2022'
           - job-type: fuzz
             generate-options: '-DVCPKG_MANIFEST_NO_DEFAULT_FEATURES=ON -DVCPKG_MANIFEST_FEATURES="wallet" -DBUILD_GUI=OFF -DBUILD_FOR_FUZZING=ON -DWERROR=ON'
@@ -275,7 +283,7 @@ jobs:
             $exeName = $_.Name
 
             # Skip as they currently do not have manifests
-            if ($exeName -eq "fuzz.exe" -or $exeName -eq "bench_bitcoin.exe" -or $exeName -eq "test_bitcoin-qt.exe") {
+            if ($exeName -eq "fuzz.exe" -or $exeName -eq "bench_bitcoin.exe" -or $exeName -eq "test_bitcoin-qt.exe" -or $exeName -eq "test_kernel.exe" -or $exeName -eq "bitcoin-chainstate.exe") {
               Write-Host "Skipping $exeName (no manifest present)"
               return
             }
@@ -302,6 +310,7 @@ jobs:
           BITCOINTX: '${{ github.workspace }}\build\bin\Release\bitcoin-tx.exe'
           BITCOINUTIL: '${{ github.workspace }}\build\bin\Release\bitcoin-util.exe'
           BITCOINWALLET: '${{ github.workspace }}\build\bin\Release\bitcoin-wallet.exe'
+          BITCOINCHAINSTATE: '${{ github.workspace }}\build\bin\Release\bitcoin-chainstate.exe'
           TEST_RUNNER_EXTRA: ${{ github.event_name != 'pull_request' && '--extended' || '' }}
         run: py -3 test/functional/test_runner.py --jobs $NUMBER_OF_PROCESSORS --ci --quiet --tmpdirprefix="${RUNNER_TEMP}" --combinedlogslen=99999999 --timeout-factor=${TEST_RUNNER_TIMEOUT_FACTOR} ${TEST_RUNNER_EXTRA}
 
@@ -394,7 +403,7 @@ jobs:
             $exeName = $_.Name
 
             # Skip as they currently do not have manifests
-            if ($exeName -eq "fuzz.exe" -or $exeName -eq "bench_bitcoin.exe") {
+            if ($exeName -eq "fuzz.exe" -or $exeName -eq "bench_bitcoin.exe" -or $exeName -eq "test_kernel.exe") {
               Write-Host "Skipping $exeName (no manifest present)"
               return
             }
@@ -525,6 +534,12 @@ jobs:
             timeout-minutes: 120
             file-env: './ci/test/00_setup_env_native_tsan.sh'
 
+          - name: 'MSan, fuzz'
+            cirrus-runner: 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-md'
+            fallback-runner: 'ubuntu-24.04'
+            timeout-minutes: 150
+            file-env: './ci/test/00_setup_env_native_fuzz_with_msan.sh'
+
           - name: 'MSan, depends'
             cirrus-runner: 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-lg'
             fallback-runner: 'ubuntu-24.04'
@@ -553,7 +568,7 @@ jobs:
         run: sed -i "s|\${INSTALL_BCC_TRACING_TOOLS}|true|g" ./ci/test/00_setup_env_native_asan.sh
 
       - name: Set mmap_rnd_bits
-        if: ${{ env.CONTAINER_NAME == 'ci_native_tsan' || env.CONTAINER_NAME == 'ci_native_msan' }}
+        if: ${{ env.CONTAINER_NAME == 'ci_native_tsan' || env.CONTAINER_NAME == 'ci_native_msan' || env.CONTAINER_NAME == 'ci_native_fuzz_msan' }}
         # Prevents crashes due to high ASLR entropy
         run: sudo sysctl -w vm.mmap_rnd_bits=28
 
@@ -566,7 +581,7 @@ jobs:
   lint:
     name: 'lint'
     needs: runners
-    runs-on: ${{ needs.runners.outputs.use-cirrus-runners == 'true' && 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-xs' || 'ubuntu-24.04' }}
+    runs-on: ${{ needs.runners.outputs.provider == 'cirrus' && 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-xs' || 'ubuntu-24.04' }}
     if: ${{ vars.SKIP_BRANCH_PUSH != 'true' || github.event_name == 'pull_request' }}
     timeout-minutes: 20
     env:
