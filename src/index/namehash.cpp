@@ -31,11 +31,11 @@ public:
     return Read (std::make_pair (DB_HASH, hash), name);
   }
 
-  bool WritePreimages (const std::vector<std::pair<uint256, valtype>>& data);
+  void WritePreimages (const std::vector<std::pair<uint256, valtype>>& data);
 
 };
 
-bool
+void
 NameHashIndex::DB::WritePreimages (
     const std::vector<std::pair<uint256, valtype>>& data)
 {
@@ -43,7 +43,7 @@ NameHashIndex::DB::WritePreimages (
   for (const auto& entry : data)
     batch.Write (std::make_pair (DB_HASH, entry.first), entry.second);
 
-  return WriteBatch (batch);
+  WriteBatch (batch);
 }
 
 NameHashIndex::NameHashIndex (std::unique_ptr<interfaces::Chain> chain,
@@ -71,7 +71,8 @@ NameHashIndex::CustomAppend (const interfaces::BlockInfo& block)
         data.emplace_back (hash, name);
       }
 
-  return db->WritePreimages (data);
+  db->WritePreimages (data);
+  return true;
 }
 
 BaseIndex::DB&

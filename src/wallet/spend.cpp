@@ -1060,7 +1060,7 @@ void DiscourageFeeSniping(CMutableTransaction& tx, FastRandomContext& rng_fast,
     }
 }
 
-size_t GetSerializeSizeForRecipient(const CRecipient& recipient)
+uint64_t GetSerializeSizeForRecipient(const CRecipient& recipient)
 {
     const auto fullScript = CNameScript::AddNamePrefix (GetScriptForDestination(recipient.dest), recipient.nameScript);
     return ::GetSerializeSize(CTxOut(recipient.nAmount, fullScript));

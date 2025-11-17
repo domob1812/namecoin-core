@@ -527,6 +527,18 @@ void AddMerkleRootAndCoinbase(CBlock& block, CTransactionRef coinbase, uint32_t 
     block.nTime = timestamp;
     block.nNonce = nonce;
     block.hashMerkleRoot = BlockMerkleRoot(block);
+
+    // Reset cached checks
+    block.m_checked_witness_commitment = false;
+    block.m_checked_merkle_root = false;
+    block.fChecked = false;
+}
+
+void InterruptWait(KernelNotifications& kernel_notifications, bool& interrupt_wait)
+{
+    LOCK(kernel_notifications.m_tip_block_mutex);
+    interrupt_wait = true;
+    kernel_notifications.m_tip_block_cv.notify_all();
 }
 
 std::unique_ptr<CBlockTemplate> WaitAndCreateNewBlock(ChainstateManager& chainman,
@@ -534,7 +546,8 @@ std::unique_ptr<CBlockTemplate> WaitAndCreateNewBlock(ChainstateManager& chainma
                                                       CTxMemPool* mempool,
                                                       const std::unique_ptr<CBlockTemplate>& block_template,
                                                       const BlockWaitOptions& options,
-                                                      const BlockAssembler::Options& assemble_options)
+                                                      const BlockAssembler::Options& assemble_options,
+                                                      bool& interrupt_wait)
 {
     // Delay calculating the current template fees, just in case a new block
     // comes in before the next tick.
@@ -559,8 +572,12 @@ std::unique_ptr<CBlockTemplate> WaitAndCreateNewBlock(ChainstateManager& chainma
                 // method on BlockTemplate and no template could have been
                 // generated before a tip exists.
                 tip_changed = Assume(tip_block) && tip_block != block_template->block.hashPrevBlock;
-                return tip_changed || chainman.m_interrupt;
+                return tip_changed || chainman.m_interrupt || interrupt_wait;
             });
+            if (interrupt_wait) {
+                interrupt_wait = false;
+                return nullptr;
+            }
         }
 
         if (chainman.m_interrupt) return nullptr;

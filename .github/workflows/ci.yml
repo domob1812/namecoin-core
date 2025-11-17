@@ -295,8 +295,6 @@ jobs:
       - name: Run test suite
         if: matrix.job-type == 'standard'
         working-directory: build
-        env:
-          QT_PLUGIN_PATH: '${{ github.workspace }}\build\vcpkg_installed\x64-windows\Qt6\plugins'
         run: |
           ctest --output-on-failure --stop-on-failure -j $NUMBER_OF_PROCESSORS -C Release
 
@@ -468,7 +466,7 @@ jobs:
             file-env: './ci/test/00_setup_env_arm.sh'
             provider: 'gha'
 
-          - name: 'ASan + LSan + UBSan + integer, no depends, USDT'
+          - name: 'ASan + LSan + UBSan + integer'
             cirrus-runner: 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-md' # has to match container in ci/test/00_setup_env_native_asan.sh for tracing tools
             fallback-runner: 'ubuntu-24.04'
             timeout-minutes: 120
@@ -510,7 +508,7 @@ jobs:
             timeout-minutes: 240
             file-env: './ci/test/00_setup_env_native_fuzz_with_valgrind.sh'
 
-          - name: 'previous releases, depends DEBUG'
+          - name: 'previous releases'
             cirrus-runner: 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-md'
             fallback-runner: 'ubuntu-24.04'
             timeout-minutes: 120
