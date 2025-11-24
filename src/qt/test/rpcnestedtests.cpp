@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2021 The Bitcoin Core developers
+// Copyright (c) 2016-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -85,6 +85,12 @@ void RPCNestedTests::rpcNestedTests()
     QVERIFY(result == "41c62dbd9068c89a449525e3cd5ac61b20ece28c3c38b3f35b2161f0e6d3cb0d");
     QVERIFY(filtered == "getblock(getbestblockhash())[tx][0]");
 
+    RPCConsole::RPCParseCommandLine(nullptr, result, "createwallet test true", false, &filtered);
+    QVERIFY(filtered == "createwallet(…)");
+    RPCConsole::RPCParseCommandLine(nullptr, result, "createwalletdescriptor abc", false, &filtered);
+    QVERIFY(filtered == "createwalletdescriptor(…)");
+    RPCConsole::RPCParseCommandLine(nullptr, result, "migratewallet abc abc", false, &filtered);
+    QVERIFY(filtered == "migratewallet(…)");
     RPCConsole::RPCParseCommandLine(nullptr, result, "signmessagewithprivkey abc", false, &filtered);
     QVERIFY(filtered == "signmessagewithprivkey(…)");
     RPCConsole::RPCParseCommandLine(nullptr, result, "signmessagewithprivkey abc,def", false, &filtered);
