@@ -155,11 +155,11 @@ jobs:
 
       - name: Clang version
         run: |
-          # Use the earliest Xcode supported by the version of macOS denoted in
+          # Use the latest Xcode supported by the version of macOS denoted in
           # doc/release-notes-empty-template.md and providing at least the
           # minimum clang version denoted in doc/dependencies.md.
-          # See: https://developer.apple.com/documentation/xcode-release-notes/xcode-16-release-notes
-          sudo xcode-select --switch /Applications/Xcode_16.0.app
+          # See: https://developer.apple.com/documentation/xcode-release-notes/xcode-16_2-release-notes
+          sudo xcode-select --switch /Applications/Xcode_16.2.app
           clang --version
 
       - name: Install Homebrew packages
@@ -344,13 +344,25 @@ jobs:
           py -3 test/fuzz/test_runner.py --par $NUMBER_OF_PROCESSORS --loglevel DEBUG "${RUNNER_TEMP}/qa-assets/fuzz_corpora"
 
   windows-cross:
-    name: 'Windows-cross to x86_64'
+    name: 'Windows-cross to x86_64, ${{ matrix.crt }}'
     needs: runners
     runs-on: ${{ needs.runners.outputs.provider == 'cirrus' && 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-sm' || 'ubuntu-24.04' }}
     if: ${{ vars.SKIP_BRANCH_PUSH != 'true' || github.event_name == 'pull_request' }}
 
+    strategy:
+      fail-fast: false
+      matrix:
+        crt: [msvcrt, ucrt]
+        include:
+          - crt: msvcrt
+            file-env: './ci/test/00_setup_env_win64_msvcrt.sh'
+            artifact-name: 'x86_64-w64-mingw32-executables'
+          - crt: ucrt
+            file-env: './ci/test/00_setup_env_win64.sh'
+            artifact-name: 'x86_64-w64-mingw32ucrt-executables'
+
     env:
-      FILE_ENV: './ci/test/00_setup_env_win64.sh'
+      FILE_ENV: ${{ matrix.file-env }}
       DANGER_CI_ON_HOST_FOLDERS: 1
 
     steps:
@@ -379,7 +391,7 @@ jobs:
       - name: Upload built executables
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-w64-mingw32-executables-${{ github.run_id }}
+          name: ${{ matrix.artifact-name }}-${{ github.run_id }}
           path: |
             ${{ env.BASE_BUILD_DIR }}/bin/*.dll
             ${{ env.BASE_BUILD_DIR }}/bin/*.exe
@@ -388,9 +400,19 @@ jobs:
             ${{ env.BASE_BUILD_DIR }}/test/config.ini
 
   windows-native-test:
-    name: 'Windows, test cross-built'
+    name: 'Windows, ${{ matrix.crt }}, test cross-built'
     runs-on: windows-2022
     needs: windows-cross
+
+    strategy:
+      fail-fast: false
+      matrix:
+        crt: [msvcrt, ucrt]
+        include:
+          - crt: msvcrt
+            artifact-name: 'x86_64-w64-mingw32-executables'
+          - crt: ucrt
+            artifact-name: 'x86_64-w64-mingw32ucrt-executables'
 
     env:
       PYTHONUTF8: 1
@@ -404,7 +426,7 @@ jobs:
       - name: Download built executables
         uses: actions/download-artifact@v5
         with:
-          name: x86_64-w64-mingw32-executables-${{ github.run_id }}
+          name: ${{ matrix.artifact-name }}-${{ github.run_id }}
 
       - name: Run bitcoind.exe
         run: ./bin/bitcoind.exe -version
@@ -433,6 +455,7 @@ jobs:
       - name: Run unit tests
         # Can't use ctest here like other jobs as we don't have a CMake build tree.
         run: |
+          ./bin/test_bitcoin-qt.exe
           ./bin/test_bitcoin.exe -l test_suite  # Intentionally run sequentially here, to catch test case failures caused by dirty global state from prior test cases.
           ./src/secp256k1/bin/exhaustive_tests.exe
           ./src/secp256k1/bin/noverify_tests.exe
@@ -516,7 +539,7 @@ jobs:
             timeout-minutes: 120
             file-env: './ci/test/00_setup_env_i686_no_ipc.sh'
 
-          - name: 'fuzzer,address,undefined,integer, no depends'
+          - name: 'fuzzer,address,undefined,integer'
             cirrus-runner: 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-lg'
             fallback-runner: 'ubuntu-24.04'
             timeout-minutes: 240
@@ -580,6 +603,10 @@ jobs:
         uses: ./.github/actions/configure-docker
         with:
           cache-provider: ${{ matrix.provider || needs.runners.outputs.provider }}
+
+      - name: Clear unnecessary files
+        if: ${{ needs.runners.outputs.provider == 'gha' && true || false }} # Only needed on GHA runners
+        uses: ./.github/actions/clear-files
 
       - name: Enable bpfcc script
         if: ${{ env.CONTAINER_NAME == 'ci_native_asan' }}
