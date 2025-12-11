@@ -525,9 +525,9 @@ CheckNameDB (Chainstate& chainState, bool disconnect)
   if (!ok)
     {
       const unsigned nHeight = chainState.m_chain.Height ();
-      LogPrintf ("ERROR: %s : name database is inconsistent\n", __func__);
+      LogDebug (BCLog::NAMES, "%s : name database is inconsistent", __func__);
       if (nHeight >= 139000 && nHeight <= 180000)
-        LogPrintf ("This is expected due to 'name stealing'.\n");
+        LogDebug (BCLog::NAMES, "This is expected due to 'name stealing'.");
       else
         assert (false);
     }

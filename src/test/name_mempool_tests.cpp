@@ -193,9 +193,9 @@ BOOST_FIXTURE_TEST_CASE (pendingChainLength_lastNameOutput,
   const auto txReg = Tx (FirstScript (ADDR, "reg", 'b'));
   const auto txUpd = Tx (UpdateScript (ADDR, "upd", "x"));
 
-  AddToMempool (mempool, Entry (txNew));
-  AddToMempool (mempool, Entry (txReg));
-  AddToMempool (mempool, Entry (txUpd));
+  TryAddToMempool (mempool, Entry (txNew));
+  TryAddToMempool (mempool, Entry (txReg));
+  TryAddToMempool (mempool, Entry (txUpd));
 
   /* For testing chained name updates, we have to build a "real" chain of
      transactions with matching inputs and outputs.  */
@@ -206,14 +206,14 @@ BOOST_FIXTURE_TEST_CASE (pendingChainLength_lastNameOutput,
   mtx.vout.push_back (CTxOut (COIN, ADDR));
   mtx.vout.push_back (CTxOut (COIN, OTHER_ADDR));
   const CTransaction chain1(mtx);
-  AddToMempool (mempool, Entry (chain1));
+  TryAddToMempool (mempool, Entry (chain1));
 
   mtx.vout.clear ();
   mtx.vout.push_back (CTxOut (COIN, ADDR));
   mtx.vout.push_back (CTxOut (COIN, UpdateScript (ADDR, "chain", "x")));
   mtx.vin.push_back (CTxIn (COutPoint (chain1.GetHash (), 0)));
   const CTransaction chain2(mtx);
-  AddToMempool (mempool, Entry (chain2));
+  TryAddToMempool (mempool, Entry (chain2));
 
   mtx.vout.clear ();
   mtx.vout.push_back (CTxOut (COIN, OTHER_ADDR));
@@ -221,12 +221,12 @@ BOOST_FIXTURE_TEST_CASE (pendingChainLength_lastNameOutput,
   mtx.vin.push_back (CTxIn (COutPoint (chain2.GetHash (), 0)));
   mtx.vin.push_back (CTxIn (COutPoint (chain1.GetHash (), 1)));
   const CTransaction chain3(mtx);
-  AddToMempool (mempool, Entry (chain3));
+  TryAddToMempool (mempool, Entry (chain3));
 
   CMutableTransaction mtxCurrency;
   mtxCurrency.vin.push_back (CTxIn (COutPoint (chain1.GetHash (), 2)));
   mtxCurrency.vin.push_back (CTxIn (COutPoint (chain3.GetHash (), 0)));
-  AddToMempool (mempool, Entry (CTransaction (mtxCurrency)));
+  TryAddToMempool (mempool, Entry (CTransaction (mtxCurrency)));
 
   BOOST_CHECK (mempool.lastNameOutput (Name ("new")).IsNull ());
   BOOST_CHECK (mempool.lastNameOutput (Name ("reg"))
@@ -254,8 +254,8 @@ BOOST_FIXTURE_TEST_CASE (name_new, NameMempoolTestSetup)
   BOOST_CHECK (e1.getNameNewHash () == NewHash ("foo", 'a'));
   BOOST_CHECK (e2.getNameNewHash () == NewHash ("foo", 'b'));
 
-  AddToMempool (mempool, e1);
-  AddToMempool (mempool, e2);
+  TryAddToMempool (mempool, e1);
+  TryAddToMempool (mempool, e2);
   BOOST_CHECK (mempool.checkNameOps (tx1));
   BOOST_CHECK (mempool.checkNameOps (tx2));
   BOOST_CHECK (!mempool.checkNameOps (tx1p));
@@ -276,7 +276,7 @@ BOOST_FIXTURE_TEST_CASE (name_firstupdate, NameMempoolTestSetup)
   BOOST_CHECK (e.isNameRegistration () && !e.isNameUpdate ());
   BOOST_CHECK (e.getName () == Name ("foo"));
 
-  AddToMempool (mempool, e);
+  TryAddToMempool (mempool, e);
   BOOST_CHECK (mempool.registersName (Name ("foo")));
   BOOST_CHECK (!mempool.updatesName (Name ("foo")));
   BOOST_CHECK (!mempool.checkNameOps (tx2));
@@ -299,9 +299,9 @@ BOOST_FIXTURE_TEST_CASE (name_update, NameMempoolTestSetup)
   BOOST_CHECK (!e1.isNameRegistration () && e1.isNameUpdate ());
   BOOST_CHECK (e1.getName () == Name ("foo"));
 
-  AddToMempool (mempool, e1);
-  AddToMempool (mempool, e2);
-  AddToMempool (mempool, e3);
+  TryAddToMempool (mempool, e1);
+  TryAddToMempool (mempool, e2);
+  TryAddToMempool (mempool, e3);
   BOOST_CHECK (!mempool.registersName (Name ("foo")));
   BOOST_CHECK (mempool.updatesName (Name ("foo")));
   BOOST_CHECK (mempool.updatesName (Name ("bar")));
@@ -321,14 +321,14 @@ BOOST_FIXTURE_TEST_CASE (name_update, NameMempoolTestSetup)
 
 BOOST_FIXTURE_TEST_CASE (mempool_sanity_check, NameMempoolTestSetup)
 {
-  AddToMempool (mempool, Entry (Tx (NewScript (ADDR, "new", 'a'))));
-  AddToMempool (mempool, Entry (Tx (NewScript (ADDR, "new", 'b'))));
+  TryAddToMempool (mempool, Entry (Tx (NewScript (ADDR, "new", 'a'))));
+  TryAddToMempool (mempool, Entry (Tx (NewScript (ADDR, "new", 'b'))));
 
-  AddToMempool (mempool, Entry (Tx (FirstScript (ADDR, "reg", 'a'))));
-  AddToMempool (mempool, Entry (Tx (UpdateScript (ADDR, "reg", "n"))));
+  TryAddToMempool (mempool, Entry (Tx (FirstScript (ADDR, "reg", 'a'))));
+  TryAddToMempool (mempool, Entry (Tx (UpdateScript (ADDR, "reg", "n"))));
 
-  AddToMempool (mempool, Entry (Tx (UpdateScript (ADDR, "upd", "x"))));
-  AddToMempool (mempool, Entry (Tx (UpdateScript (ADDR, "upd", "y"))));
+  TryAddToMempool (mempool, Entry (Tx (UpdateScript (ADDR, "upd", "x"))));
+  TryAddToMempool (mempool, Entry (Tx (UpdateScript (ADDR, "upd", "y"))));
 
   LOCK (cs_main);
   auto& chainState = m_node.chainman->ActiveChainstate ();
@@ -403,7 +403,7 @@ BOOST_FIXTURE_TEST_CASE (registration_conflicts, NameMempoolTestSetup)
   const auto tx2 = Tx (FirstScript (ADDR, "foo", 'b'));
   const auto e = Entry (tx1);
 
-  AddToMempool (mempool, e);
+  TryAddToMempool (mempool, e);
   BOOST_CHECK (mempool.registersName (Name ("foo")));
   BOOST_CHECK (!mempool.checkNameOps (tx2));
 
@@ -424,8 +424,8 @@ BOOST_FIXTURE_TEST_CASE (expire_conflicts, NameMempoolTestSetup)
   const auto e1 = Entry (tx1);
   const auto e2 = Entry (tx2);
 
-  AddToMempool (mempool, e1);
-  AddToMempool (mempool, e2);
+  TryAddToMempool (mempool, e1);
+  TryAddToMempool (mempool, e2);
   BOOST_CHECK (mempool.updatesName (Name ("foo")));
 
   NameConflictTracker tracker(m_node);
@@ -441,7 +441,7 @@ BOOST_FIXTURE_TEST_CASE (unexpire_conflicts, NameMempoolTestSetup)
   const auto tx = Tx (FirstScript (ADDR, "foo", 'a'));
   const auto e = Entry (tx);
 
-  AddToMempool (mempool, e);
+  TryAddToMempool (mempool, e);
   BOOST_CHECK (mempool.registersName (Name ("foo")));
 
   NameConflictTracker tracker(m_node);

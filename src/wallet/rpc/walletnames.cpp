@@ -249,8 +249,7 @@ name_list ()
           if (cur.isNameOp ())
             {
               if (nOut != -1)
-                LogPrintf ("ERROR: wallet contains tx with multiple"
-                           " name outputs");
+                LogDebug (BCLog::NAMES, "%s: wallet contains tx with multiple name outputs", __func__);
               else
                 {
                   nameOp = cur;
@@ -453,8 +452,8 @@ name_new ()
 
   const std::string randStr = HexStr (rand);
   const std::string txid = txidVal.get_str ();
-  LogPrintf ("name_new: name=%s, rand=%s, tx=%s\n",
-             EncodeNameForMessage (name), randStr.c_str (), txid.c_str ());
+  LogInfo ("name_new: name=%s, rand=%s, tx=%s\n",
+           EncodeNameForMessage (name), randStr.c_str (), txid.c_str ());
 
   UniValue res(UniValue::VARR);
   res.push_back (txid);
@@ -637,8 +636,7 @@ name_firstupdate ()
               if (cur.getNameOp () != OP_NAME_NEW)
                 continue;
               if (found) {
-                LogPrintf ("ERROR: wallet contains tx with multiple"
-                           " name outputs");
+                LogDebug (BCLog::NAMES, "%s: wallet contains tx with multiple name outputs", __func__);
                 continue;
               }
               nameOp = cur;

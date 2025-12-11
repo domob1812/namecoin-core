@@ -243,7 +243,7 @@ bool CCoinsViewDB::BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashB
             if (m_options.simulate_crash_ratio) {
                 static FastRandomContext rng;
                 if (rng.randrange(m_options.simulate_crash_ratio) == 0) {
-                    LogPrintf("Simulating a crash. Goodbye.\n");
+                    LogError("Simulating a crash. Goodbye.");
                     _Exit(0);
                 }
             }
@@ -508,9 +508,9 @@ bool CCoinsViewDB::ValidateNameDB(const Chainstate& chainState, const std::funct
         return false;
     }
 
-    LogPrintf("Checked name database, %u unexpired names, %u total.\n",
-              namesInDB.size(), nameHeightsData.size());
-    LogPrintf("Names with history: %u\n", namesWithHistory.size());
+    LogInfo("Checked name database, %u unexpired names, %u total.\n",
+            namesInDB.size(), nameHeightsData.size());
+    LogInfo("Names with history: %u\n", namesWithHistory.size());
 
     return true;
 }

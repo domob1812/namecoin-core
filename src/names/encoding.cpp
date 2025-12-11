@@ -27,8 +27,8 @@ EncodingFromOptions (const std::string& option, const NameEncoding defaultVal)
     }
   catch (const std::invalid_argument& exc)
     {
-      LogPrintf ("Invalid value for %s:\n  %s\n  falling back to default %s\n",
-                 option, exc.what (), EncodingToString (defaultVal));
+      LogDebug (BCLog::NAMES, "%s: Invalid value for %s:\n  %s\n  falling back to default %s",
+                __func__, option, exc.what (), EncodingToString (defaultVal));
       return defaultVal;
     }
 }

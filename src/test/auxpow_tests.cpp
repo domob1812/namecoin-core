@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2024 Daniel Kraft
+// Copyright (c) 2014-2025 Daniel Kraft
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -586,7 +586,7 @@ BOOST_FIXTURE_TEST_CASE (auxpow_miner_blockRegeneration, TestChain100Setup)
   mtx.vout.emplace_back (1234, scriptPubKey);
   {
     LOCK2 (cs_main, m_node.mempool->cs);
-    AddToMempool (*m_node.mempool, entry.FromTx (mtx));
+    TryAddToMempool (*m_node.mempool, entry.FromTx (mtx));
   }
 
   /* We should still get back the cached block, for now.  */

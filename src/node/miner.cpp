@@ -175,7 +175,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock()
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = m_chainstate.m_chainman.GenerateCoinbaseCommitment(*pblock, pindexPrev);
 
-    LogPrintf("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
+    LogInfo("CreateNewBlock(): block weight: %u txs: %u fees: %ld sigops %d\n", GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
 
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
@@ -198,12 +198,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock()
     return std::move(pblocktemplate);
 }
 
-bool BlockAssembler::TestPackage(FeePerWeight package_feerate, int64_t packageSigOpsCost) const
+bool BlockAssembler::TestChunkBlockLimits(FeePerWeight chunk_feerate, int64_t chunk_sigops_cost) const
 {
-    if (nBlockWeight + package_feerate.size >= m_options.nBlockMaxWeight) {
+    if (nBlockWeight + chunk_feerate.size >= m_options.nBlockMaxWeight) {
         return false;
     }
-    if (nBlockSigOpsCost + packageSigOpsCost >= MAX_BLOCK_SIGOPS_COST) {
+    if (nBlockSigOpsCost + chunk_sigops_cost >= MAX_BLOCK_SIGOPS_COST) {
         return false;
     }
     return true;
@@ -212,7 +212,7 @@ bool BlockAssembler::TestPackage(FeePerWeight package_feerate, int64_t packageSi
 // Perform transaction-level checks before adding to block:
 // - transaction finality (locktime)
 // - Namecoin maturity conditions
-bool BlockAssembler::TestPackageTransactions(const std::vector<CTxMemPoolEntryRef>& txs) const
+bool BlockAssembler::TestChunkTransactions(const std::vector<CTxMemPoolEntryRef>& txs) const
 {
     for (const auto tx : txs) {
         if (!TxAllowedForNamecoin(tx.get().GetTx())) {
@@ -303,7 +303,7 @@ void BlockAssembler::AddToBlock(const CTxMemPoolEntry& entry)
     nFees += entry.GetFee();
 
     if (m_options.print_modified_fee) {
-        LogPrintf("fee rate %s txid %s\n",
+        LogInfo("fee rate %s txid %s\n",
                   CFeeRate(entry.GetModifiedFee(), entry.GetTxSize()).ToString(),
                   entry.GetTx().GetHash().ToString());
     }
@@ -328,18 +328,18 @@ void BlockAssembler::addChunks()
 
     while (selected_transactions.size() > 0) {
         // Check to see if min fee rate is still respected.
-        if (chunk_feerate.fee < m_options.blockMinFeeRate.GetFee(chunk_feerate_vsize.size)) {
+        if (chunk_feerate_vsize << m_options.blockMinFeeRate.GetFeePerVSize()) {
             // Everything else we might consider has a lower feerate
             return;
         }
 
-        int64_t package_sig_ops = 0;
+        int64_t chunk_sig_ops = 0;
         for (const auto& tx : selected_transactions) {
-            package_sig_ops += tx.get().GetSigOpCost();
+            chunk_sig_ops += tx.get().GetSigOpCost();
         }
 
         // Check to see if this chunk will fit.
-        if (!TestPackage(chunk_feerate, package_sig_ops) || !TestPackageTransactions(selected_transactions) || !DbLockLimitOk(selected_transactions)) {
+        if (!TestChunkBlockLimits(chunk_feerate, chunk_sig_ops) || !TestChunkTransactions(selected_transactions) || !DbLockLimitOk(selected_transactions)) {
             // This chunk won't fit, so we skip it and will try the next best one.
             m_mempool->SkipBuilderChunk();
             ++nConsecutiveFailed;

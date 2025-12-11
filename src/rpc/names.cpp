@@ -60,8 +60,8 @@ EncodingFromOptionsJson (const UniValue& options, const std::string& field,
       }
     catch (const std::invalid_argument& exc)
       {
-        LogPrintf ("Invalid value for %s in options: %s\n  using default %s\n",
-                   field, exc.what (), EncodingToString (defaultValue));
+        LogDebug (BCLog::NAMES, "%s: Invalid value for %s in options: %s\n  using default %s",
+                  __func__, field, exc.what (), EncodingToString (defaultValue));
       }
 
   return res;
