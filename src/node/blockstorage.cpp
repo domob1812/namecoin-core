@@ -863,7 +863,7 @@ FlatFilePos BlockManager::FindNextBlockPos(unsigned int nAddSize, unsigned int n
         // a reindex. A flush error might also leave some of the data files
         // untrimmed.
         if (!FlushBlockFile(last_blockfile, /*fFinalize=*/true, finalize_undo)) {
-            LogPrintLevel(BCLog::BLOCKSTORAGE, BCLog::Level::Warning,
+            LogWarning(
                           "Failed to flush previous block file %05i (finalize=1, finalize_undo=%i) before opening new block file %05i\n",
                           last_blockfile, finalize_undo, nFile);
         }
@@ -987,7 +987,7 @@ bool BlockManager::WriteBlockUndo(const CBlockUndo& blockundo, BlockValidationSt
             // fact it is. Note though, that a failed flush might leave the data
             // file untrimmed.
             if (!FlushUndoFile(pos.nFile, true)) {
-                LogPrintLevel(BCLog::BLOCKSTORAGE, BCLog::Level::Warning, "Failed to flush undo file %05i\n", pos.nFile);
+                LogWarning("Failed to flush undo file %05i\n", pos.nFile);
             }
         } else if (pos.nFile == cursor.file_num && block.nHeight > cursor.undo_height) {
             cursor.undo_height = block.nHeight;
@@ -1013,14 +1013,14 @@ bool ReadBlockOrHeader(T& block, const FlatFilePos& pos, const BlockManager& blo
     block.SetNull();
 
     // Open history file to read
-    std::vector<std::byte> block_data;
-    if (!blockman.ReadRawBlock(block_data, pos)) {
+    const auto block_data{blockman.ReadRawBlock(pos)};
+    if (!block_data) {
         return false;
     }
 
     try {
         // Read block
-        SpanReader{block_data} >> TX_WITH_WITNESS(block);
+        SpanReader{*block_data} >> TX_WITH_WITNESS(block);
     } catch (const std::exception& e) {
         LogError("Deserialize or I/O error - %s at %s while reading block", e.what(), pos.ToString());
         return false;
@@ -1073,19 +1073,19 @@ bool BlockManager::ReadBlockHeader(CBlockHeader& block, const CBlockIndex& index
     return ReadBlockOrHeader(block, index, *this);
 }
 
-bool BlockManager::ReadRawBlock(std::vector<std::byte>& block, const FlatFilePos& pos) const
+BlockManager::ReadRawBlockResult BlockManager::ReadRawBlock(const FlatFilePos& pos, std::optional<std::pair<size_t, size_t>> block_part) const
 {
     if (pos.nPos < STORAGE_HEADER_BYTES) {
         // If nPos is less than STORAGE_HEADER_BYTES, we can't read the header that precedes the block data
         // This would cause an unsigned integer underflow when trying to position the file cursor
         // This can happen after pruning or default constructed positions
         LogError("Failed for %s while reading raw block storage header", pos.ToString());
-        return false;
+        return util::Unexpected{ReadRawError::IO};
     }
     AutoFile filein{OpenBlockFile({pos.nFile, pos.nPos - STORAGE_HEADER_BYTES}, /*fReadOnly=*/true)};
     if (filein.IsNull()) {
         LogError("OpenBlockFile failed for %s while reading raw block", pos.ToString());
-        return false;
+        return util::Unexpected{ReadRawError::IO};
     }
 
     try {
@@ -1097,23 +1097,31 @@ bool BlockManager::ReadRawBlock(std::vector<std::byte>& block, const FlatFilePos
         if (blk_start != GetParams().MessageStart()) {
             LogError("Block magic mismatch for %s: %s versus expected %s while reading raw block",
                 pos.ToString(), HexStr(blk_start), HexStr(GetParams().MessageStart()));
-            return false;
+            return util::Unexpected{ReadRawError::IO};
         }
 
         if (blk_size > MAX_SIZE) {
             LogError("Block data is larger than maximum deserialization size for %s: %s versus %s while reading raw block",
                 pos.ToString(), blk_size, MAX_SIZE);
-            return false;
+            return util::Unexpected{ReadRawError::IO};
         }
 
-        block.resize(blk_size); // Zeroing of memory is intentional here
-        filein.read(block);
+        if (block_part) {
+            const auto [offset, size]{*block_part};
+            if (size == 0 || offset >= blk_size || size > blk_size - offset) {
+                return util::Unexpected{ReadRawError::BadPartRange}; // Avoid logging - offset/size come from untrusted REST input
+            }
+            filein.seek(offset, SEEK_CUR);
+            blk_size = size;
+        }
+
+        std::vector<std::byte> data(blk_size); // Zeroing of memory is intentional here
+        filein.read(data);
+        return data;
     } catch (const std::exception& e) {
         LogError("Read from block file failed: %s for %s while reading raw block", e.what(), pos.ToString());
-        return false;
+        return util::Unexpected{ReadRawError::IO};
     }
-
-    return true;
 }
 
 FlatFilePos BlockManager::WriteBlock(const CBlock& block, int nHeight)

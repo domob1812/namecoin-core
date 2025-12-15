@@ -330,7 +330,7 @@ static void http_request_cb(struct evhttp_request* req, void* arg)
         std::unique_ptr<HTTPWorkItem> item(new HTTPWorkItem(std::move(hreq), path, i->handler));
         assert(g_work_queue);
         if (g_work_queue->Enqueue(item.get())) {
-            item.release(); /* if true, queue took ownership */
+            [[maybe_unused]] auto _{item.release()}; /* if true, queue took ownership */
         } else {
             LogWarning("Request rejected because http work queue depth exceeded, it can be increased with the -rpcworkqueue= setting");
             item->req->WriteReply(HTTP_SERVICE_UNAVAILABLE, "Work queue depth exceeded");
@@ -422,22 +422,20 @@ static void HTTPWorkQueueRun(WorkQueue<HTTPClosure>* queue, int worker_num)
 /** libevent event log callback */
 static void libevent_log_cb(int severity, const char *msg)
 {
-    BCLog::Level level;
     switch (severity) {
     case EVENT_LOG_DEBUG:
-        level = BCLog::Level::Debug;
+        LogDebug(BCLog::LIBEVENT, "%s", msg);
         break;
     case EVENT_LOG_MSG:
-        level = BCLog::Level::Info;
+        LogInfo("libevent: %s", msg);
         break;
     case EVENT_LOG_WARN:
-        level = BCLog::Level::Warning;
+        LogWarning("libevent: %s", msg);
         break;
     default: // EVENT_LOG_ERR and others are mapped to error
-        level = BCLog::Level::Error;
+        LogError("libevent: %s", msg);
         break;
     }
-    LogPrintLevel(BCLog::LIBEVENT, level, "%s\n", msg);
 }
 
 bool InitHTTPServer(const util::SignalInterrupt& interrupt)

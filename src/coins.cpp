@@ -289,18 +289,16 @@ void CCoinsViewCache::DeleteName(const valtype &name) {
 
 bool CCoinsViewCache::BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlockIn, const CNameCache& names) {
     for (auto it{cursor.Begin()}; it != cursor.End(); it = cursor.NextAndMaybeErase(*it)) {
-        // Ignore non-dirty entries (optimization).
-        if (!it->second.IsDirty()) {
+        if (!it->second.IsDirty()) { // TODO a cursor can only contain dirty entries
             continue;
         }
-        CCoinsMap::iterator itUs = cacheCoins.find(it->first);
-        if (itUs == cacheCoins.end()) {
-            // The parent cache does not have an entry, while the child cache does.
-            // We can ignore it if it's both spent and FRESH in the child
-            if (!(it->second.IsFresh() && it->second.coin.IsSpent())) {
-                // Create the coin in the parent cache, move the data up
-                // and mark it as dirty.
-                itUs = cacheCoins.try_emplace(it->first).first;
+        auto [itUs, inserted]{cacheCoins.try_emplace(it->first)};
+        if (inserted) {
+            if (it->second.IsFresh() && it->second.coin.IsSpent()) {
+                cacheCoins.erase(itUs); // TODO fresh coins should have been removed at spend
+            } else {
+                // The parent cache does not have an entry, while the child cache does.
+                // Move the data up and mark it as dirty.
                 CCoinsCacheEntry& entry{itUs->second};
                 assert(entry.coin.DynamicMemoryUsage() == 0);
                 if (cursor.WillErase(*it)) {
@@ -356,7 +354,7 @@ bool CCoinsViewCache::BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &ha
     return true;
 }
 
-bool CCoinsViewCache::Flush() {
+bool CCoinsViewCache::Flush(bool will_reuse_cache) {
     /* This function is called when validating the name mempool, and BatchWrite
        actually fails if hashBlock is not set.  Thus we have to make sure here
        that it is a valid no-op when nothing is cached.  */
@@ -367,7 +365,9 @@ bool CCoinsViewCache::Flush() {
     bool fOk = base->BatchWrite(cursor, hashBlock, cacheNames);
     if (fOk) {
         cacheCoins.clear();
-        ReallocateCache();
+        if (will_reuse_cache) {
+            ReallocateCache();
+        }
         cachedCoinsUsage = 0;
         cacheNames.clear();
     }

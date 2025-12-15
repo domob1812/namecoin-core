@@ -2053,18 +2053,15 @@ void Chainstate::CheckForkWarningConditions()
 {
     AssertLockHeld(cs_main);
 
-    // Before we get past initial download, we cannot reliably alert about forks
-    // (we assume we don't get stuck on a fork before finishing our initial sync)
-    // Also not applicable to the background chainstate
-    if (m_chainman.IsInitialBlockDownload() || this->GetRole() == ChainstateRole::BACKGROUND) {
+    if (this->GetRole() == ChainstateRole::BACKGROUND) {
         return;
     }
 
     if (m_chainman.m_best_invalid && m_chainman.m_best_invalid->nChainWork > m_chain.Tip()->nChainWork + (GetBlockProof(*m_chain.Tip()) * 6)) {
-        LogWarning("Found invalid chain at least ~6 blocks longer than our best chain. Chain state database corruption likely.");
+        LogWarning("Found invalid chain more than 6 blocks longer than our best chain. This could be due to database corruption or consensus incompatibility with peers.");
         m_chainman.GetNotifications().warningSet(
             kernel::Warning::LARGE_WORK_INVALID_CHAIN,
-            _("Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade."));
+            _("Warning: Found invalid chain more than 6 blocks longer than our best chain. This could be due to database corruption or consensus incompatibility with peers."));
     } else {
         m_chainman.GetNotifications().warningUnset(kernel::Warning::LARGE_WORK_INVALID_CHAIN);
     }
@@ -2863,7 +2860,7 @@ bool Chainstate::FlushStateToDisk(
                 // TODO: Handle return error, or add detailed comment why it is
                 // safe to not return an error upon failure.
                 if (!m_blockman.FlushChainstateBlockFile(m_chain.Height())) {
-                    LogPrintLevel(BCLog::VALIDATION, BCLog::Level::Warning, "%s: Failed to flush block file.\n", __func__);
+                    LogWarning("%s: Failed to flush block file.\n", __func__);
                 }
             }
 
@@ -3036,7 +3033,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
             LogError ("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
             return false;
         }
-        bool flushed = view.Flush();
+        bool flushed = view.Flush(/*will_reuse_cache=*/false); // local CCoinsViewCache goes out of scope
         assert(flushed);
     }
     LogDebug(BCLog::BENCH, "- Disconnect block: %.2fms\n",
@@ -3178,7 +3175,7 @@ bool Chainstate::ConnectTip(
                  Ticks<MillisecondsDouble>(time_3 - time_2),
                  Ticks<SecondsDouble>(m_chainman.time_connect_total),
                  Ticks<MillisecondsDouble>(m_chainman.time_connect_total) / m_chainman.num_blocks_total);
-        bool flushed = view.Flush();
+        bool flushed = view.Flush(/*will_reuse_cache=*/false); // local CCoinsViewCache goes out of scope
         assert(flushed);
     }
     const auto time_4{SteadyClock::now()};
@@ -3565,14 +3562,24 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
         } // release cs_main
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
-        if (exited_ibd) {
-            // If a background chainstate is in use, we may need to rebalance our
-            // allocation of caches once a chainstate exits initial block download.
-            LOCK(::cs_main);
-            m_chainman.MaybeRebalanceCaches();
+        bool disabled{false};
+        {
+            LOCK(m_chainman.GetMutex());
+            if (exited_ibd) {
+                // If a background chainstate is in use, we may need to rebalance our
+                // allocation of caches once a chainstate exits initial block download.
+                m_chainman.MaybeRebalanceCaches();
+            }
+
+            // Write changes periodically to disk, after relay.
+            if (!FlushStateToDisk(state, FlushStateMode::PERIODIC)) {
+                return false;
+            }
+
+            disabled = m_disabled;
         }
 
-        if (WITH_LOCK(::cs_main, return m_disabled)) {
+        if (disabled) {
             // Background chainstate has reached the snapshot base block, so exit.
 
             // Restart indexes to resume indexing for all blocks unique to the snapshot
@@ -3595,11 +3602,6 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
     } while (pindexNewTip != pindexMostWork);
 
     m_chainman.CheckBlockIndex();
-
-    // Write changes periodically to disk, after relay.
-    if (!FlushStateToDisk(state, FlushStateMode::PERIODIC)) {
-        return false;
-    }
 
     return true;
 }
@@ -4037,7 +4039,7 @@ static bool CheckWitnessMalleation(const CBlock& block, bool expect_witness_comm
             // The malleation check is ignored; as the transaction tree itself
             // already does not permit it, it is impossible to trigger in the
             // witness tree.
-            uint256 hash_witness = BlockWitnessMerkleRoot(block, /*mutated=*/nullptr);
+            uint256 hash_witness = BlockWitnessMerkleRoot(block);
 
             CHash256().Write(hash_witness).Write(witness_stack[0]).Finalize(hash_witness);
             if (memcmp(hash_witness.begin(), &block.vtx[0]->vout[commitpos].scriptPubKey[6], 32)) {
@@ -4157,7 +4159,7 @@ std::vector<unsigned char> ChainstateManager::GenerateCoinbaseCommitment(CBlock&
     int commitpos = GetWitnessCommitmentIndex(block);
     std::vector<unsigned char> ret(32, 0x00);
     if (commitpos == NO_WITNESS_COMMITMENT) {
-        uint256 witnessroot = BlockWitnessMerkleRoot(block, nullptr);
+        uint256 witnessroot = BlockWitnessMerkleRoot(block);
         CHash256().Write(witnessroot).Write(ret).Finalize(witnessroot);
         CTxOut out;
         out.nValue = 0;
@@ -4365,7 +4367,8 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
                 *ppindex = pindex;
             if (pindex->nStatus & BLOCK_FAILED_MASK) {
                 LogDebug(BCLog::VALIDATION, "%s: block %s is marked invalid\n", __func__, hash.ToString());
-                return state.Invalid(BlockValidationResult::BLOCK_CACHED_INVALID, "duplicate-invalid");
+                return state.Invalid(BlockValidationResult::BLOCK_CACHED_INVALID, "duplicate-invalid",
+                                     strprintf("block %s was previously marked invalid", hash.ToString()));
             }
             return true;
         }
@@ -4759,6 +4762,8 @@ bool Chainstate::LoadChainTip()
             /*verification_progress=*/m_chainman.GuessVerificationProgress(tip));
     }
 
+    CheckForkWarningConditions();
+
     return true;
 }
 
@@ -5019,7 +5024,7 @@ bool Chainstate::ReplayBlocks()
     }
 
     cache.SetBestBlock(pindexNew->GetBlockHash());
-    cache.Flush();
+    cache.Flush(/*will_reuse_cache=*/false); // local CCoinsViewCache goes out of scope
     m_chainman.GetNotifications().progress(bilingual_str{}, 100, false);
     return true;
 }
