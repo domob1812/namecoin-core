@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -227,8 +227,7 @@ private:
     void FindFilesToPruneManual(
         std::set<int>& setFilesToPrune,
         int nManualPruneHeight,
-        const Chainstate& chain,
-        ChainstateManager& chainman);
+        const Chainstate& chain);
 
     /**
      * Prune block and undo files (blk???.dat and rev???.dat) so that the disk space used is less than a user-defined target.
@@ -253,7 +252,6 @@ private:
         ChainstateManager& chainman);
 
     RecursiveMutex cs_LastBlockFile;
-    std::vector<CBlockFileInfo> m_blockfile_info;
 
     //! Since assumedvalid chainstates may be syncing a range of the chain that is very
     //! far away from the normal/background validation process, we should segment blockfiles
@@ -288,12 +286,6 @@ private:
 
     const Obfuscation m_obfuscation;
 
-    /** Dirty block index entries. */
-    std::set<CBlockIndex*> m_dirty_blockindex;
-
-    /** Dirty block file entries. */
-    std::set<int> m_dirty_fileinfo;
-
     /**
      * Map from external index name to oldest block that must not be pruned.
      *
@@ -308,6 +300,15 @@ private:
 
     const FlatFileSeq m_block_file_seq;
     const FlatFileSeq m_undo_file_seq;
+
+protected:
+    std::vector<CBlockFileInfo> m_blockfile_info;
+
+    /** Dirty block index entries. */
+    std::set<CBlockIndex*> m_dirty_blockindex;
+
+    /** Dirty block file entries. */
+    std::set<int> m_dirty_fileinfo;
 
 public:
     using Options = kernel::BlockManagerOpts;

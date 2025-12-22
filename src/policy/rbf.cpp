@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2022 The Bitcoin Core developers
+// Copyright (c) 2016-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -88,7 +88,7 @@ std::optional<std::string> EntriesAndTxidsDisjoint(const CTxMemPool::setEntries&
 {
     for (CTxMemPool::txiter ancestorIt : ancestors) {
         const Txid& hashAncestor = ancestorIt->GetTx().GetHash();
-        if (direct_conflicts.count(hashAncestor)) {
+        if (direct_conflicts.contains(hashAncestor)) {
             return strprintf("%s spends conflicting transaction %s",
                              txid.ToString(),
                              hashAncestor.ToString());
