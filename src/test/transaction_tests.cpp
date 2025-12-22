@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -60,7 +60,7 @@ script_verify_flags ParseScriptFlags(std::string strFlags)
     std::vector<std::string> words = SplitString(strFlags, ',');
     for (const std::string& word : words)
     {
-        if (!mapFlagNames.count(word)) {
+        if (!mapFlagNames.contains(word)) {
             BOOST_ERROR("Bad test: unknown verification flag '" << word << "'");
             continue;
         }
@@ -90,7 +90,7 @@ bool CheckTxScripts(const CTransaction& tx, const std::map<COutPoint, CScript>& 
     ScriptError err = expect_valid ? SCRIPT_ERR_UNKNOWN_ERROR : SCRIPT_ERR_OK;
     for (unsigned int i = 0; i < tx.vin.size() && tx_valid; ++i) {
         const CTxIn input = tx.vin[i];
-        const CAmount amount = map_prevout_values.count(input.prevout) ? map_prevout_values.at(input.prevout) : 0;
+        const CAmount amount = map_prevout_values.contains(input.prevout) ? map_prevout_values.at(input.prevout) : 0;
         try {
             tx_valid = VerifyScript(input.scriptSig, map_prevout_scriptPubKeys.at(input.prevout),
                 &input.scriptWitness, flags, TransactionSignatureChecker(&tx, i, amount, txdata, MissingDataBehavior::ASSERT_FAIL), &err);
@@ -509,7 +509,7 @@ BOOST_AUTO_TEST_CASE(test_big_witness_transaction)
     // create a big transaction of 4500 inputs signed by the same key
     for(uint32_t ij = 0; ij < 4500; ij++) {
         uint32_t i = mtx.vin.size();
-        COutPoint outpoint(Txid::FromHex("0000000000000000000000000000000000000000000000000000000000000100").value(), i);
+        COutPoint outpoint{Txid{"0000000000000000000000000000000000000000000000000000000000000100"}, i};
 
         mtx.vin.resize(mtx.vin.size() + 1);
         mtx.vin[i].prevout = outpoint;

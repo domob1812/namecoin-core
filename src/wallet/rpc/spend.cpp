@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2022 The Bitcoin Core developers
+// Copyright (c) 2011-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -1588,7 +1588,7 @@ RPCHelpMan sendall()
                 CTxDestination dest;
                 ExtractDestination(out.scriptPubKey, dest);
                 std::string addr{EncodeDestination(dest)};
-                if (addresses_without_amount.count(addr) > 0) {
+                if (addresses_without_amount.contains(addr)) {
                     out.nValue = per_output_without_amount;
                     if (!gave_remaining_to_first) {
                         out.nValue += remainder % addresses_without_amount.size();

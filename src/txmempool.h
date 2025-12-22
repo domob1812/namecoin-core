@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -566,7 +566,7 @@ public:
     bool IsUnbroadcastTx(const Txid& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs)
     {
         AssertLockHeld(cs);
-        return m_unbroadcast_txids.count(txid) != 0;
+        return m_unbroadcast_txids.contains(txid);
     }
 
     /** Guards this internal counter for external reporting */

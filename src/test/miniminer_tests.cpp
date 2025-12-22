@@ -1,4 +1,4 @@
-// Copyright (c) 2021 The Bitcoin Core developers
+// Copyright (c) 2021-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include <node/mini_miner.h>
@@ -103,7 +103,7 @@ BOOST_FIXTURE_TEST_CASE(miniminer_negative, TestChain100Setup)
     mini_miner_no_target.BuildMockTemplate(std::nullopt);
     const auto template_txids{mini_miner_no_target.GetMockTemplateTxids()};
     BOOST_CHECK_EQUAL(template_txids.size(), 1);
-    BOOST_CHECK(template_txids.count(tx_mod_negative->GetHash()) > 0);
+    BOOST_CHECK(template_txids.contains(tx_mod_negative->GetHash()));
 }
 
 BOOST_FIXTURE_TEST_CASE(miniminer_1p1c, TestChain100Setup)

@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2022 The Bitcoin Core developers
+// Copyright (c) 2009-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -598,7 +598,7 @@ void CBlockPolicyEstimator::processTransaction(const NewMempoolTransactionInfo& 
     LOCK(m_cs_fee_estimator);
     const unsigned int txHeight = tx.info.txHeight;
     const auto& hash = tx.info.m_tx->GetHash();
-    if (mapMemPoolTxs.count(hash)) {
+    if (mapMemPoolTxs.contains(hash)) {
         LogDebug(BCLog::ESTIMATEFEE, "Blockpolicy error mempool tx %s already being tracked\n",
                  hash.ToString());
         return;
