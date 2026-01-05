@@ -339,7 +339,7 @@ public:
 
     //! Do a bulk modification (multiple Coin changes + BestBlock change).
     //! The passed cursor is used to iterate through the coins.
-    virtual bool BatchWrite(CoinsViewCacheCursor& cursor, const uint256& hashBlock, const CNameCache& names);
+    virtual void BatchWrite(CoinsViewCacheCursor& cursor, const uint256& hashBlock, const CNameCache& names);
 
     //! Get a cursor to iterate over the whole state
     virtual std::unique_ptr<CCoinsViewCursor> Cursor() const;
@@ -372,7 +372,7 @@ public:
     bool GetNamesForHeight(unsigned nHeight, std::set<valtype>& names) const override;
     CNameIterator* IterateNames() const override;
     void SetBackend(CCoinsView &viewIn);
-    bool BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlock, const CNameCache& names) override;
+    void BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlock, const CNameCache& names) override;
     std::unique_ptr<CCoinsViewCursor> Cursor() const override;
     size_t EstimateSize() const override;
     bool ValidateNameDB(const Chainstate& chainState, const std::function<void()>& interruption_point) const override;
@@ -420,7 +420,7 @@ public:
     bool GetNameHistory(const valtype &name, CNameHistory &data) const override;
     bool GetNamesForHeight(unsigned nHeight, std::set<valtype>& names) const override;
     CNameIterator* IterateNames() const override;
-    bool BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlock, const CNameCache& names) override;
+    void BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlock, const CNameCache& names) override;
     std::unique_ptr<CCoinsViewCursor> Cursor() const override {
         throw std::logic_error("CCoinsViewCache cursor iteration not supported.");
     }
@@ -476,18 +476,16 @@ public:
      * to be forgotten.
      * If will_reuse_cache is false, the cache will retain the same memory footprint
      * after flushing and should be destroyed to deallocate.
-     * If false is returned, the state of this cache (and its backing view) will be undefined.
      */
-    bool Flush(bool will_reuse_cache = true);
+    void Flush(bool will_reuse_cache = true);
 
     /**
      * Push the modifications applied to this cache to its base while retaining
      * the contents of this cache (except for spent coins, which we erase).
      * Failure to call this method or Flush() before destruction will cause the changes
      * to be forgotten.
-     * If false is returned, the state of this cache (and its backing view) will be undefined.
      */
-    bool Sync();
+    void Sync();
 
     /**
      * Removes the UTXO with the given outpoint from the cache, if it is

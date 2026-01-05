@@ -20,7 +20,11 @@ bool CCoinsView::GetName(const valtype &name, CNameData &data) const { return fa
 bool CCoinsView::GetNameHistory(const valtype &name, CNameHistory &data) const { return false; }
 bool CCoinsView::GetNamesForHeight(unsigned nHeight, std::set<valtype>& names) const { return false; }
 CNameIterator* CCoinsView::IterateNames() const { assert (false); }
-bool CCoinsView::BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlock, const CNameCache& names) { return false; }
+void CCoinsView::BatchWrite(CoinsViewCacheCursor& cursor, const uint256& hashBlock, const CNameCache& names)
+{
+    for (auto it{cursor.Begin()}; it != cursor.End(); it = cursor.NextAndMaybeErase(*it)) { }
+}
+
 std::unique_ptr<CCoinsViewCursor> CCoinsView::Cursor() const { return nullptr; }
 bool CCoinsView::ValidateNameDB(const Chainstate& chainState, const std::function<void()>& interruption_point) const { return false; }
 
@@ -39,7 +43,7 @@ bool CCoinsViewBacked::GetNameHistory(const valtype &name, CNameHistory &data) c
 bool CCoinsViewBacked::GetNamesForHeight(unsigned nHeight, std::set<valtype>& names) const { return base->GetNamesForHeight(nHeight, names); }
 CNameIterator* CCoinsViewBacked::IterateNames() const { return base->IterateNames(); }
 void CCoinsViewBacked::SetBackend(CCoinsView &viewIn) { base = &viewIn; }
-bool CCoinsViewBacked::BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlock, const CNameCache& names) { return base->BatchWrite(cursor, hashBlock, names); }
+void CCoinsViewBacked::BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlock, const CNameCache& names) { base->BatchWrite(cursor, hashBlock, names); }
 std::unique_ptr<CCoinsViewCursor> CCoinsViewBacked::Cursor() const { return base->Cursor(); }
 size_t CCoinsViewBacked::EstimateSize() const { return base->EstimateSize(); }
 bool CCoinsViewBacked::ValidateNameDB(const Chainstate& chainState, const std::function<void()>& interruption_point) const { return base->ValidateNameDB(chainState, interruption_point); }
@@ -287,7 +291,8 @@ void CCoinsViewCache::DeleteName(const valtype &name) {
     cacheNames.remove(name);
 }
 
-bool CCoinsViewCache::BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlockIn, const CNameCache& names) {
+void CCoinsViewCache::BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlockIn, const CNameCache& names)
+{
     for (auto it{cursor.Begin()}; it != cursor.End(); it = cursor.NextAndMaybeErase(*it)) {
         if (!it->second.IsDirty()) { // TODO a cursor can only contain dirty entries
             continue;
@@ -351,40 +356,32 @@ bool CCoinsViewCache::BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &ha
     }
     hashBlock = hashBlockIn;
     cacheNames.apply(names);
-    return true;
 }
 
-bool CCoinsViewCache::Flush(bool will_reuse_cache) {
+void CCoinsViewCache::Flush(bool will_reuse_cache) {
     /* This function is called when validating the name mempool, and BatchWrite
        actually fails if hashBlock is not set.  Thus we have to make sure here
        that it is a valid no-op when nothing is cached.  */
     if (hashBlock.IsNull() && cacheCoins.empty() && cacheNames.empty())
-        return true;
+        return;
 
     auto cursor{CoinsViewCacheCursor(m_sentinel, cacheCoins, /*will_erase=*/true)};
-    bool fOk = base->BatchWrite(cursor, hashBlock, cacheNames);
-    if (fOk) {
-        cacheCoins.clear();
-        if (will_reuse_cache) {
-            ReallocateCache();
-        }
-        cachedCoinsUsage = 0;
-        cacheNames.clear();
+    base->BatchWrite(cursor, hashBlock, cacheNames);
+    cacheCoins.clear();
+    if (will_reuse_cache) {
+        ReallocateCache();
     }
-    return fOk;
+    cachedCoinsUsage = 0;
 }
 
-bool CCoinsViewCache::Sync()
+void CCoinsViewCache::Sync()
 {
     auto cursor{CoinsViewCacheCursor(m_sentinel, cacheCoins, /*will_erase=*/false)};
-    bool fOk = base->BatchWrite(cursor, hashBlock, cacheNames);
-    if (fOk) {
-        if (m_sentinel.second.Next() != &m_sentinel) {
-            /* BatchWrite must clear flags of all entries */
-            throw std::logic_error("Not all unspent flagged entries were cleared");
-        }
+    base->BatchWrite(cursor, hashBlock, cacheNames);
+    if (m_sentinel.second.Next() != &m_sentinel) {
+        /* BatchWrite must clear flags of all entries */
+        throw std::logic_error("Not all unspent flagged entries were cleared");
     }
-    return fOk;
 }
 
 void CCoinsViewCache::Uncache(const COutPoint& hash)

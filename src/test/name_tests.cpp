@@ -158,7 +158,7 @@ BOOST_AUTO_TEST_CASE (name_database)
   BOOST_CHECK (view.GetNamesForHeight (height2, setRet));
   BOOST_CHECK (setRet == setExpected);
 
-  BOOST_CHECK (view.Flush ());
+  view.Flush ();
   BOOST_CHECK (view.GetName (name1, data2));
   BOOST_CHECK (dataHeight2 == data2);
 
@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE (name_database)
 
   view.DeleteName (name1);
   BOOST_CHECK (!view.GetName (name1, data2));
-  BOOST_CHECK (view.Flush ());
+  view.Flush ();
   BOOST_CHECK (!view.GetName (name1, data2));
 
   BOOST_CHECK (view.GetNamesForHeight (height2, setRet));
@@ -177,7 +177,7 @@ BOOST_AUTO_TEST_CASE (name_database)
   BOOST_CHECK (setRet == setExpected);
 
   view.SetName (name2, dataHeight1, false);
-  BOOST_CHECK (view.Flush ());
+  view.Flush ();
   view.SetName (name1, dataHeight1, false);
 
   BOOST_CHECK (view.GetNamesForHeight (height2, setRet));

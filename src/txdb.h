@@ -48,7 +48,7 @@ public:
     bool GetNameHistory(const valtype &name, CNameHistory &data) const override;
     bool GetNamesForHeight(unsigned nHeight, std::set<valtype>& data) const override;
     CNameIterator* IterateNames() const override;
-    bool BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlock, const CNameCache& names) override;
+    void BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlock, const CNameCache& names) override;
     std::unique_ptr<CCoinsViewCursor> Cursor() const override;
     bool ValidateNameDB(const Chainstate& chainState, const std::function<void()>& interruption_point) const override;
 
