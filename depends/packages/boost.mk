@@ -7,7 +7,7 @@ $(package)_patches = skip_compiled_targets.patch
 $(package)_build_subdir = build
 
 define $(package)_set_vars
-  $(package)_config_opts = -DBOOST_INCLUDE_LIBRARIES="multi_index;signals2;test"
+  $(package)_config_opts = -DBOOST_INCLUDE_LIBRARIES="multi_index;signals2;test;xpressive"
   $(package)_config_opts += -DBOOST_TEST_HEADERS_ONLY=ON
   $(package)_config_opts += -DBOOST_ENABLE_MPI=OFF
   $(package)_config_opts += -DBOOST_ENABLE_PYTHON=OFF
