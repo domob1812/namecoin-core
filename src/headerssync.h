@@ -33,17 +33,18 @@ struct CompressedHeader {
         hashMerkleRoot.SetNull();
     }
 
-    CompressedHeader(const CBlockHeader& header)
+    explicit CompressedHeader(const CBlockHeader& header)
+        : nVersion{header.nVersion},
+          hashMerkleRoot{header.hashMerkleRoot},
+          nTime{header.nTime},
+          nBits{header.nBits},
+          nNonce{header.nNonce},
+          auxpow{header.auxpow}
     {
-        nVersion = header.nVersion;
-        hashMerkleRoot = header.hashMerkleRoot;
-        nTime = header.nTime;
-        nBits = header.nBits;
-        nNonce = header.nNonce;
-        auxpow = header.auxpow;
     }
 
-    CBlockHeader GetFullHeader(const uint256& hash_prev_block) {
+    CBlockHeader GetFullHeader(const uint256& hash_prev_block) const
+    {
         CBlockHeader ret;
         ret.nVersion = nVersion;
         ret.hashPrevBlock = hash_prev_block;
@@ -140,8 +141,8 @@ public:
      * minimum_required_work: amount of chain work required to accept the chain
      */
     HeadersSyncState(NodeId id, const Consensus::Params& consensus_params,
-            const HeadersSyncParams& params, const CBlockIndex* chain_start,
-            const arith_uint256& minimum_required_work);
+                     const HeadersSyncParams& params, const CBlockIndex& chain_start,
+                     const arith_uint256& minimum_required_work);
 
     /** Result data structure for ProcessNextHeaders. */
     struct ProcessingResult {
@@ -223,7 +224,7 @@ private:
     const HeadersSyncParams m_params;
 
     /** Store the last block in our block index that the peer's chain builds from */
-    const CBlockIndex* m_chain_start{nullptr};
+    const CBlockIndex& m_chain_start;
 
     /** Minimum work that we're looking for on this chain. */
     const arith_uint256 m_minimum_required_work;
