@@ -23,7 +23,7 @@ static const int BIP0031_VERSION = 60000;
 //! Version when we switched to a size-based "headers" limit.
 static const int SIZE_HEADERS_LIMIT_VERSION = 110000;
 
-//! "sendheaders" command and announcing blocks with headers starts with this version
+//! "sendheaders" message type and announcing blocks with headers starts with this version
 static const int SENDHEADERS_VERSION = 110012;
 
 //! "feefilter" tells peers to filter invs to you by fee starts with this version
@@ -35,7 +35,7 @@ static const int SHORT_IDS_BLOCKS_VERSION = 110014;
 //! not banning for invalid compact blocks starts with this version
 static const int INVALID_CB_NO_BAN_VERSION = 110015;
 
-//! "wtxidrelay" command for wtxid-based relay starts with this version
+//! "wtxidrelay" message type for wtxid-based relay starts with this version
 static const int WTXID_RELAY_VERSION = 110016;
 
 #endif // BITCOIN_NODE_PROTOCOL_VERSION_H

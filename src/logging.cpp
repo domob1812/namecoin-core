@@ -202,6 +202,7 @@ static const std::map<std::string, BCLog::LogFlags, std::less<>> LOG_CATEGORIES_
     {"scan", BCLog::SCAN},
     {"txpackages", BCLog::TXPACKAGES},
     {"kernel", BCLog::KERNEL},
+    {"privatebroadcast", BCLog::PRIVBROADCAST},
     {"names", BCLog::NAMES},
 };
 

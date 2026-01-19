@@ -264,6 +264,10 @@ class Binaries:
         # Add -nonamed because "bitcoin rpc" enables -named by default, but bitcoin-cli doesn't
         return self._argv("rpc", self.paths.bitcoincli) + ["-nonamed"]
 
+    def bench_argv(self):
+        "Return argv array that should be used to invoke bench_bitcoin"
+        return self._argv("bench", self.paths.bitcoin_bench)
+
     def tx_argv(self):
         "Return argv array that should be used to invoke bitcoin-tx"
         return self._argv("tx", self.paths.bitcointx)
@@ -304,6 +308,7 @@ def get_binary_paths(config):
     binaries = {
         "namecoin": "BITCOIN_BIN",
         "namecoind": "BITCOIND",
+        "bench_namecoin": "BITCOIN_BENCH",
         "namecoin-cli": "BITCOINCLI",
         "namecoin-util": "BITCOINUTIL",
         "namecoin-tx": "BITCOINTX",

@@ -738,7 +738,7 @@ public:
                 .blockhash = consteval_ctor(uint256{"385901ccbd69dff6bbd00065d01fb8a9e464dede7cfe0372443884f9b1dcf6b9"}),
             },
             {
-                // For use by test/functional/feature_assumeutxo.py
+                // For use by test/functional/feature_assumeutxo.py and test/functional/tool_bitcoin_chainstate.py
                 .height = 299,
                 .hash_serialized = AssumeutxoHash{uint256{"74251f753e3e273fe8856d4e058f6cb4264a30dcef0dff7d355eac040e32e61b"}},
                 .m_chain_tx_count = 334,

@@ -116,7 +116,8 @@ namespace BCLog {
         SCAN        = (CategoryMask{1} << 27),
         TXPACKAGES  = (CategoryMask{1} << 28),
         KERNEL      = (CategoryMask{1} << 29),
-        NAMES       = (CategoryMask{1} << 30),
+        PRIVBROADCAST = (CategoryMask{1} << 30),
+        NAMES       = (CategoryMask{1} << 31),
         ALL         = ~NONE,
     };
     enum class Level {

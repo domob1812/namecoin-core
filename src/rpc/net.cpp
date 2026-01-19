@@ -48,7 +48,8 @@ const std::vector<std::string> CONNECTION_TYPE_DOC{
         "inbound (initiated by the peer)",
         "manual (added via addnode RPC or -addnode/-connect configuration options)",
         "addr-fetch (short-lived automatic connection for soliciting addresses)",
-        "feeler (short-lived automatic connection for testing addresses)"
+        "feeler (short-lived automatic connection for testing addresses)",
+        "private-broadcast (short-lived automatic connection for broadcasting privacy-sensitive transactions)"
 };
 
 const std::vector<std::string> TRANSPORT_TYPE_DOC{
@@ -160,7 +161,7 @@ static RPCHelpMan getpeerinfo()
                     {RPCResult::Type::BOOL, "inbound", "Inbound (true) or Outbound (false)"},
                     {RPCResult::Type::BOOL, "bip152_hb_to", "Whether we selected peer as (compact blocks) high-bandwidth peer"},
                     {RPCResult::Type::BOOL, "bip152_hb_from", "Whether peer selected us as (compact blocks) high-bandwidth peer"},
-                    {RPCResult::Type::NUM, "startingheight", "The starting height (block) of the peer"},
+                    {RPCResult::Type::NUM, "startingheight", /*optional=*/true, "(DEPRECATED, returned only if config option -deprecatedrpc=startingheight is passed) The starting height (block) of the peer"},
                     {RPCResult::Type::NUM, "presynced_headers", "The current height of header pre-synchronization with this peer, or -1 if no low-work sync is in progress"},
                     {RPCResult::Type::NUM, "synced_headers", "The last header we have in common with this peer"},
                     {RPCResult::Type::NUM, "synced_blocks", "The last block we have in common with this peer"},
@@ -267,7 +268,9 @@ static RPCHelpMan getpeerinfo()
         obj.pushKV("inbound", stats.fInbound);
         obj.pushKV("bip152_hb_to", stats.m_bip152_highbandwidth_to);
         obj.pushKV("bip152_hb_from", stats.m_bip152_highbandwidth_from);
-        obj.pushKV("startingheight", statestats.m_starting_height);
+        if (IsDeprecatedRPCEnabled("startingheight")) {
+            obj.pushKV("startingheight", statestats.m_starting_height);
+        }
         obj.pushKV("presynced_headers", statestats.presync_height);
         obj.pushKV("synced_headers", statestats.nSyncHeight);
         obj.pushKV("synced_blocks", statestats.nCommonHeight);

@@ -29,6 +29,11 @@ import sys
 import tempfile
 import re
 import logging
+from test_framework.util import (
+    Binaries,
+    export_env_build_path,
+    get_binary_paths,
+)
 
 # Minimum amount of space to run the tests.
 MIN_FREE_SPACE = 1.1 * 1024 * 1024 * 1024
@@ -87,7 +92,12 @@ EXTENDED_SCRIPTS = [
     'feature_index_prune.py',
 ]
 
+# Special script to run each bench sanity check
+TOOL_BENCH_SANITY_CHECK = "tool_bench_sanity_check.py"
+
 BASE_SCRIPTS = [
+    # Special scripts that are "expanded" later
+    TOOL_BENCH_SANITY_CHECK,
     # Scripts that are run by default.
     # Longest test should go first, to favor running tests in parallel
     # vv Tests less than 5m vv
@@ -300,6 +310,7 @@ BASE_SCRIPTS = [
     'rpc_dumptxoutset.py',
     'feature_minchainwork.py',
     'rpc_estimatefee.py',
+    'p2p_private_broadcast.py',
     'rpc_getblockstats.py',
     'feature_port.py',
     'feature_bind_port_externalip.py',
@@ -445,8 +456,7 @@ def main():
     parser.add_argument('--ansi', action='store_true', default=sys.stdout.isatty(), help="Use ANSI colors and dots in output (enabled by default when standard output is a TTY)")
     parser.add_argument('--combinedlogslen', '-c', type=int, default=0, metavar='n', help='On failure, print a log (of length n lines) to the console, combined from the test framework and all test nodes.')
     parser.add_argument('--coverage', action='store_true', help='generate a basic coverage report for the RPC interface')
-    parser.add_argument('--ci', action='store_true', help='Run checks and code that are usually only enabled in a continuous integration environment')
-    parser.add_argument('--exclude', '-x', help='specify a comma-separated-list of scripts to exclude.')
+    parser.add_argument('--exclude', '-x', action='append', help='specify a script to exclude. Can be specified multiple times. The .py extension is optional.')
     parser.add_argument('--extended', action='store_true', help='run the extended test suite in addition to the basic tests')
     parser.add_argument('--help', '-h', '-?', action='store_true', help='print help text and exit')
     parser.add_argument('--jobs', '-j', type=int, default=4, help='how many test scripts to run in parallel. Default=4.')
@@ -460,7 +470,8 @@ def main():
     parser.add_argument('--resultsfile', '-r', help='store test results (as CSV) to the provided file')
 
     args, unknown_args = parser.parse_known_args()
-    fail_on_warn = args.ci
+    # Fail on self-check warnings before running the tests.
+    fail_on_warn = True
     if not args.ansi:
         global DEFAULT, BOLD, GREEN, RED
         DEFAULT = ("", "")
@@ -504,6 +515,8 @@ def main():
         print("Re-compile with the -DBUILD_DAEMON=ON build option")
         sys.exit(1)
 
+    export_env_build_path(config)
+
     # Build tests
     test_list = deque()
     if tests:
@@ -539,7 +552,7 @@ def main():
     if args.exclude:
 
         def print_warning_missing_test(test_name):
-            print("{}WARNING!{} Test '{}' not found in current test list. Check the --exclude list.".format(BOLD[1], BOLD[0], test_name))
+            print("{}WARNING!{} Test '{}' not found in current test list. Check the --exclude options.".format(BOLD[1], BOLD[0], test_name))
             if fail_on_warn:
                 sys.exit(1)
 
@@ -547,16 +560,31 @@ def main():
             if not exclude_list:
                 print_warning_missing_test(exclude_test)
             for exclude_item in exclude_list:
+                print("Excluding %s" % exclude_item)
                 test_list.remove(exclude_item)
 
-        exclude_tests = [test.strip() for test in args.exclude.split(",")]
-        for exclude_test in exclude_tests:
+        for exclude_test in args.exclude:
+            if ',' in exclude_test:
+                print("{}WARNING!{} --exclude '{}' contains a comma. Use --exclude for each test.".format(BOLD[1], BOLD[0], exclude_test))
+                if fail_on_warn:
+                    sys.exit(1)
+
+        for exclude_test in args.exclude:
             # A space in the name indicates it has arguments such as "rpc_bind.py --ipv4"
             if ' ' in exclude_test:
                 remove_tests([test for test in test_list if test.replace('.py', '') == exclude_test.replace('.py', '')])
             else:
                 # Exclude all variants of a test
                 remove_tests([test for test in test_list if test.split('.py')[0] == exclude_test.split('.py')[0]])
+
+    if config["components"].getboolean("BUILD_BENCH") and TOOL_BENCH_SANITY_CHECK in test_list:
+        # Remove it, and expand it for each bench in the list
+        test_list.remove(TOOL_BENCH_SANITY_CHECK)
+        bench_cmd = Binaries(get_binary_paths(config), bin_dir=None).bench_argv() + ["-list"]
+        bench_list = subprocess.check_output(bench_cmd, text=True).splitlines()
+        bench_list = [f"{TOOL_BENCH_SANITY_CHECK} --bench={b}" for b in bench_list]
+        # Start with special scripts (variable, unknown runtime)
+        test_list.extendleft(reversed(bench_list))
 
     if args.filter:
         test_list = deque(filter(re.compile(args.filter).search, test_list))
@@ -827,7 +855,7 @@ class TestHandler:
                     status = "Passed"
                 elif proc.returncode == TEST_EXIT_SKIPPED:
                     status = "Skipped"
-                    skip_reason = re.search(r"Test Skipped: (.*)", stdout).group(1)
+                    skip_reason = re.search(r"Test Skipped: (.*)", stdout).group(1).strip()
                 else:
                     status = "Failed"
 
