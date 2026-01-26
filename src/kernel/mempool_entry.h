@@ -13,7 +13,6 @@
 #include <primitives/transaction.h>
 #include <txgraph.h>
 #include <script/names.h>
-#include <util/epochguard.h>
 #include <util/overflow.h>
 
 #include <chrono>
@@ -184,7 +183,6 @@ public:
     }
 
     mutable size_t idx_randomized; //!< Index in mempool's txns_randomized
-    mutable Epoch::Marker m_epoch_marker; //!< epoch when last touched, useful for graph algorithms
 };
 
 using CTxMemPoolEntryRef = CTxMemPoolEntry::CTxMemPoolEntryRef;

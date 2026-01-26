@@ -61,6 +61,7 @@ add_executable(test_namecoin
   name_tests.cpp
   name_applications_tests.cpp
   name_mempool_tests.cpp
+  bip328_tests.cpp
   net_peer_connection_tests.cpp
   net_peer_eviction_tests.cpp
   net_tests.cpp
