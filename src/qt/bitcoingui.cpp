@@ -43,8 +43,6 @@
 #include <util/translation.h>
 #include <validation.h>
 
-#include <functional>
-
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
@@ -1643,7 +1641,7 @@ void BitcoinGUI::showModalOverlay()
         modalOverlay->toggleVisibility();
 }
 
-static bool ThreadSafeMessageBox(BitcoinGUI* gui, const bilingual_str& message, const std::string& caption, unsigned int style)
+static bool ThreadSafeMessageBox(BitcoinGUI* gui, const bilingual_str& message, unsigned int style)
 {
     bool modal = (style & CClientUIInterface::MODAL);
     // The SECURE flag has no effect in the Qt GUI.
@@ -1655,11 +1653,14 @@ static bool ThreadSafeMessageBox(BitcoinGUI* gui, const bilingual_str& message, 
     if (message.original != message.translated) {
         detailed_message = BitcoinGUI::tr("Original message:") + "\n" + QString::fromStdString(message.original);
     }
+    // The title is empty for node messages. The fallback title is usually set
+    // by `style`.
+    const QString title{};
 
     // In case of modal message, use blocking connection to wait for user to click a button
     bool invoked = QMetaObject::invokeMethod(gui, "message",
                                modal ? GUIUtil::blockingGUIThreadConnection() : Qt::QueuedConnection,
-                               Q_ARG(QString, QString::fromStdString(caption)),
+                               Q_ARG(QString, title),
                                Q_ARG(QString, QString::fromStdString(message.translated)),
                                Q_ARG(unsigned int, style),
                                Q_ARG(bool*, &ret),
@@ -1671,8 +1672,12 @@ static bool ThreadSafeMessageBox(BitcoinGUI* gui, const bilingual_str& message, 
 void BitcoinGUI::subscribeToCoreSignals()
 {
     // Connect signals to client
-    m_handler_message_box = m_node.handleMessageBox(std::bind(ThreadSafeMessageBox, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    m_handler_question = m_node.handleQuestion(std::bind(ThreadSafeMessageBox, this, std::placeholders::_1, std::placeholders::_3, std::placeholders::_4));
+    m_handler_message_box = m_node.handleMessageBox([this](const bilingual_str& message, unsigned int style) {
+        return ThreadSafeMessageBox(this, message, style);
+    });
+    m_handler_question = m_node.handleQuestion([this](const bilingual_str& message, const std::string& /*non_interactive_message*/, unsigned int style) {
+        return ThreadSafeMessageBox(this, message, style);
+    });
 }
 
 void BitcoinGUI::unsubscribeFromCoreSignals()

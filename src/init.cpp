@@ -1394,7 +1394,7 @@ static ChainstateLoadResult InitAndLoadChainstate(
     options.coins_error_cb = [] {
         uiInterface.ThreadSafeMessageBox(
             _("Error reading from database, shutting down."),
-            "", CClientUIInterface::MSG_ERROR);
+            CClientUIInterface::MSG_ERROR);
     };
     uiInterface.InitMessage(_("Loading block index…"));
     auto catch_exceptions = [](auto&& f) -> ChainstateLoadResult {
@@ -1844,7 +1844,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             uiInterface.ThreadSafeQuestion(
             error + Untranslated(".\n\n") + _("Do you want to rebuild the databases now?"),
             error.original + ".\nPlease restart with -reindex or -reindex-chainstate to recover.",
-            "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT)};
+            CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT)};
         if (!do_retry) {
             return false;
         }
@@ -2008,6 +2008,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         ScheduleBatchPriority();
         // Import blocks and ActivateBestChain()
         ImportBlocks(chainman, vImportFiles);
+        WITH_LOCK(::cs_main, chainman.UpdateIBDStatus());
         if (args.GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
             LogInfo("Stopping after block import");
             if (!(Assert(node.shutdown_request))()) {

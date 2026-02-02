@@ -11,9 +11,8 @@
 #include <primitives/transaction_identifier.h> // IWYU pragma: export
 #include <script/script.h>
 #include <serialize.h>
-#include <streams.h>
-#include <uint256.h>
 
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <ios>
