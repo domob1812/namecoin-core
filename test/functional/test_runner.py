@@ -355,6 +355,7 @@ BASE_SCRIPTS = [
     'mempool_cluster.py',
     'feature_logging.py',
     'interface_ipc.py',
+    'interface_ipc_mining.py',
     'feature_anchors.py',
     'mempool_datacarrier.py',
     'feature_coinstatsindex.py',

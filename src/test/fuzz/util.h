@@ -65,11 +65,6 @@ template<typename B = uint8_t>
     return ret;
 }
 
-[[nodiscard]] inline std::vector<bool> ConsumeRandomLengthBitVector(FuzzedDataProvider& fuzzed_data_provider, const std::optional<size_t>& max_length = std::nullopt) noexcept
-{
-    return BytesToBits(ConsumeRandomLengthByteVector(fuzzed_data_provider, max_length));
-}
-
 [[nodiscard]] inline DataStream ConsumeDataStream(FuzzedDataProvider& fuzzed_data_provider, const std::optional<size_t>& max_length = std::nullopt) noexcept
 {
     return DataStream{ConsumeRandomLengthByteVector(fuzzed_data_provider, max_length)};
@@ -105,7 +100,7 @@ template <typename T, typename P>
 [[nodiscard]] std::optional<T> ConsumeDeserializable(FuzzedDataProvider& fuzzed_data_provider, const P& params, const std::optional<size_t>& max_length = std::nullopt) noexcept
 {
     const std::vector<uint8_t> buffer{ConsumeRandomLengthByteVector(fuzzed_data_provider, max_length)};
-    DataStream ds{buffer};
+    SpanReader ds{buffer};
     T obj;
     try {
         ds >> params(obj);
@@ -119,7 +114,7 @@ template <typename T>
 [[nodiscard]] inline std::optional<T> ConsumeDeserializable(FuzzedDataProvider& fuzzed_data_provider, const std::optional<size_t>& max_length = std::nullopt) noexcept
 {
     const std::vector<uint8_t> buffer = ConsumeRandomLengthByteVector(fuzzed_data_provider, max_length);
-    DataStream ds{buffer};
+    SpanReader ds{buffer};
     T obj;
     try {
         ds >> obj;

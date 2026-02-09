@@ -356,7 +356,7 @@ TestingSetup::TestingSetup(
 
     if (!opts.setup_net) return;
 
-    m_node.netgroupman = std::make_unique<NetGroupManager>(/*asmap=*/std::vector<bool>());
+    m_node.netgroupman = std::make_unique<NetGroupManager>(NetGroupManager::NoAsmap());
     m_node.addrman = std::make_unique<AddrMan>(*m_node.netgroupman,
                                                /*deterministic=*/false,
                                                m_node.args->GetIntArg("-checkaddrman", 0));
@@ -416,6 +416,7 @@ CBlock TestChain100Setup::CreateBlock(
 {
     BlockAssembler::Options options;
     options.coinbase_output_script = scriptPubKey;
+    options.include_dummy_extranonce = true;
     CBlock block = BlockAssembler{chainstate, nullptr, options}.CreateNewBlock()->block;
 
     Assert(block.vtx.size() == 1);
