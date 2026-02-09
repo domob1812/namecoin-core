@@ -7,13 +7,13 @@
 
 #include <coins.h>
 #include <dbwrapper.h>
-#include <logging.h>
 #include <names/encoding.h>
 #include <primitives/transaction.h>
 #include <random.h>
 #include <serialize.h>
 #include <script/names.h>
 #include <uint256.h>
+#include <util/log.h>
 #include <util/vector.h>
 #include <validation.h>
 

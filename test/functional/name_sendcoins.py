@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2018-2021 Daniel Kraft
+# Copyright (c) 2018-2026 Daniel Kraft
 # Distributed under the MIT/X11 software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """RPC test for the "sendCoins" option with name operations."""
@@ -74,11 +74,11 @@ class NameSendCoinsTest (NameTestFramework):
     # Verify the insufficient funds check, both where it fails a priori
     # and where we just don't have enough for the fee.
     balance = self.nodes[0].getbalance ()
-    assert_raises_rpc_error (-6, 'Insufficient funds',
+    assert_raises_rpc_error (-6, 'sufficient funds',
                              self.nodes[0].name_update,
                              "testname", "value",
                              {"sendCoins": {addr1: balance + 1}})
-    assert_raises_rpc_error (-6, 'Insufficient funds',
+    assert_raises_rpc_error (-6, 'exceeds your balance',
                              self.nodes[0].name_update,
                              "testname", "value",
                              {"sendCoins": {addr1: balance}})
