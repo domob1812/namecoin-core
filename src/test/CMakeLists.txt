@@ -105,6 +105,7 @@ add_executable(test_namecoin
   sync_tests.cpp
   system_ram_tests.cpp
   system_tests.cpp
+  threadpool_tests.cpp
   timeoffsets_tests.cpp
   torcontrol_tests.cpp
   transaction_tests.cpp
@@ -168,6 +169,7 @@ target_link_libraries(test_namecoin
   secp256k1
   Boost::headers
   libevent::extra
+  $<TARGET_NAME_IF_EXISTS:USDT::headers>
 )
 
 if(ENABLE_WALLET)

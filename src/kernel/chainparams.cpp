@@ -33,15 +33,6 @@
 
 using namespace util::hex_literals;
 
-// Workaround MSVC bug triggering C7595 when calling consteval constructors in
-// initializer lists.
-// https://developercommunity.visualstudio.com/t/Bogus-C7595-error-on-valid-C20-code/10906093
-#if defined(_MSC_VER)
-auto consteval_ctor(auto&& input) { return input; }
-#else
-#define consteval_ctor(input) (input)
-#endif
-
 bool CChainParams::IsHistoricBug(const Txid& txid, unsigned nHeight, BugType& type) const
 {
     const std::pair<unsigned, uint256> key(nHeight, txid.ToUint256());
@@ -361,7 +352,7 @@ public:
                 .height = 2'500'000,
                 .hash_serialized = AssumeutxoHash{uint256{"f841584909f68e47897952345234e37fcd9128cd818f41ee6c3ca68db8071be7"}},
                 .m_chain_tx_count = 66484552,
-                .blockhash = consteval_ctor(uint256{"0000000000000093bcb68c03a9a168ae252572d348a2eaeba2cdf9231d73206f"}),
+                .blockhash = uint256{"0000000000000093bcb68c03a9a168ae252572d348a2eaeba2cdf9231d73206f"},
             }
         };
 
@@ -468,7 +459,7 @@ public:
                 .height = 90'000,
                 .hash_serialized = AssumeutxoHash{uint256{"784fb5e98241de66fdd429f4392155c9e7db5c017148e66e8fdbc95746f8b9b5"}},
                 .m_chain_tx_count = 11347043,
-                .blockhash = consteval_ctor(uint256{"0000000002ebe8bcda020e0dd6ccfbdfac531d2f6a81457191b99fc2df2dbe3b"}),
+                .blockhash = uint256{"0000000002ebe8bcda020e0dd6ccfbdfac531d2f6a81457191b99fc2df2dbe3b"},
             }
         };
 
@@ -598,7 +589,7 @@ public:
                 .height = 160'000,
                 .hash_serialized = AssumeutxoHash{uint256{"fe0a44309b74d6b5883d246cb419c6221bcccf0b308c9b59b7d70783dbdf928a"}},
                 .m_chain_tx_count = 2289496,
-                .blockhash = consteval_ctor(uint256{"0000003ca3c99aff040f2563c2ad8f8ec88bd0fd6b8f0895cfaf1ef90353a62c"}),
+                .blockhash = uint256{"0000003ca3c99aff040f2563c2ad8f8ec88bd0fd6b8f0895cfaf1ef90353a62c"},
             }
         };
 
@@ -733,21 +724,21 @@ public:
                 .height = 110,
                 .hash_serialized = AssumeutxoHash{uint256{"b6f3c376e66764edd996ec074254833d33d187bf4886f5812b85ba5f0db2d54d"}},
                 .m_chain_tx_count = 111,
-                .blockhash = consteval_ctor(uint256{"4f29bd26ec9ef63973ee4e45bfb517cccaed7629c6cdbdd0d2f653f9d3ea4a47"}),
+                .blockhash = uint256{"4f29bd26ec9ef63973ee4e45bfb517cccaed7629c6cdbdd0d2f653f9d3ea4a47"},
             },
             {
                 // For use by fuzz target src/test/fuzz/utxo_snapshot.cpp
                 .height = 200,
                 .hash_serialized = AssumeutxoHash{uint256{"17dcc016d188d16068907cdeb38b75691a118d43053b8cd6a25969419381d13a"}},
                 .m_chain_tx_count = 201,
-                .blockhash = consteval_ctor(uint256{"385901ccbd69dff6bbd00065d01fb8a9e464dede7cfe0372443884f9b1dcf6b9"}),
+                .blockhash = uint256{"385901ccbd69dff6bbd00065d01fb8a9e464dede7cfe0372443884f9b1dcf6b9"},
             },
             {
                 // For use by test/functional/feature_assumeutxo.py and test/functional/tool_bitcoin_chainstate.py
                 .height = 299,
                 .hash_serialized = AssumeutxoHash{uint256{"74251f753e3e273fe8856d4e058f6cb4264a30dcef0dff7d355eac040e32e61b"}},
                 .m_chain_tx_count = 334,
-                .blockhash = consteval_ctor(uint256{"a53cb7a2bedb5860b46df1481ac107e2d53940bbbe7f3dd82301b4f467083736"}),
+                .blockhash = uint256{"a53cb7a2bedb5860b46df1481ac107e2d53940bbbe7f3dd82301b4f467083736"},
             },
         };
 
