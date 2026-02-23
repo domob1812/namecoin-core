@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2022 Daniel Kraft
+# Copyright (c) 2014-2026 Daniel Kraft
 # Distributed under the MIT/X11 software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -11,7 +11,6 @@ from test_framework.util import *
 from decimal import Decimal
 
 nameFee = Decimal ("0.01")
-txFee = Decimal ("0.001")
 initialBalance = Decimal ("2500")
 zero = Decimal ("0")
 
@@ -22,7 +21,7 @@ class NameWalletTest (NameTestFramework):
 
   def set_test_params (self):
     self.setup_clean_chain = True
-    self.setup_name_test ([["-paytxfee=%s" % txFee, "-allowexpired"]] * 2)
+    self.setup_name_test ([["-allowexpired"]] * 2)
 
   def generateToOther (self, ind, n):
     """
@@ -45,7 +44,6 @@ class NameWalletTest (NameTestFramework):
     assert totalFee >= extra
 
     absFee = totalFee - extra
-    assert_fee_amount (absFee, count_bytes (info["hex"]), txFee)
 
     return totalFee
 

@@ -8,6 +8,7 @@
 #include <common/system.h>
 #include <index/namehash.h>
 #include <index/txindex.h>
+#include <index/txospenderindex.h>
 #include <kernel/caches.h>
 #include <logging.h>
 #include <node/interface_ui.h>
@@ -23,6 +24,8 @@
 static constexpr size_t MAX_TX_INDEX_CACHE{1024_MiB};
 //! Max memory allocated to all block filter index caches combined in bytes.
 static constexpr size_t MAX_FILTER_INDEX_CACHE{1024_MiB};
+//! Max memory allocated to tx spenderindex DB specific cache in bytes.
+static constexpr size_t MAX_TXOSPENDER_INDEX_CACHE{1024_MiB};
 //! Maximum dbcache size on 32-bit systems.
 static constexpr size_t MAX_32BIT_DBCACHE{1024_MiB};
 
@@ -44,8 +47,10 @@ CacheSizes CalculateCacheSizes(const ArgsManager& args, size_t n_indexes)
 
     IndexCacheSizes index_sizes;
     index_sizes.tx_index = std::min(total_cache / 8, args.GetBoolArg("-txindex", DEFAULT_TXINDEX) ? MAX_TX_INDEX_CACHE : 0);
-    index_sizes.name_hash_index = std::min(total_cache / 8, gArgs.GetBoolArg("-namehashindex", DEFAULT_NAMEHASHINDEX) ? MAX_NAMEHASH_CACHE << 20 : 0);
     total_cache -= index_sizes.tx_index;
+    index_sizes.txospender_index = std::min(total_cache / 8, args.GetBoolArg("-txospenderindex", DEFAULT_TXOSPENDERINDEX) ? MAX_TXOSPENDER_INDEX_CACHE : 0);
+    total_cache -= index_sizes.txospender_index;
+    index_sizes.name_hash_index = std::min(total_cache / 8, gArgs.GetBoolArg("-namehashindex", DEFAULT_NAMEHASHINDEX) ? MAX_NAMEHASH_CACHE << 20 : 0);
     total_cache -= index_sizes.name_hash_index;
     if (n_indexes > 0) {
         size_t max_cache = std::min(total_cache / 8, MAX_FILTER_INDEX_CACHE);

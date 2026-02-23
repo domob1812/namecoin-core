@@ -212,6 +212,24 @@ UniValue blockheaderToJSON(const BlockManager& blockman, const CBlockIndex& tip,
     return result;
 }
 
+/** Serialize coinbase transaction metadata */
+UniValue coinbaseTxToJSON(const CTransaction& coinbase_tx)
+{
+    CHECK_NONFATAL(!coinbase_tx.vin.empty());
+    const CTxIn& vin_0{coinbase_tx.vin[0]};
+    UniValue coinbase_tx_obj(UniValue::VOBJ);
+    coinbase_tx_obj.pushKV("version", coinbase_tx.version);
+    coinbase_tx_obj.pushKV("locktime", coinbase_tx.nLockTime);
+    coinbase_tx_obj.pushKV("sequence", vin_0.nSequence);
+    coinbase_tx_obj.pushKV("coinbase", HexStr(vin_0.scriptSig));
+    const auto& witness_stack{vin_0.scriptWitness.stack};
+    if (!witness_stack.empty()) {
+        CHECK_NONFATAL(witness_stack.size() == 1);
+        coinbase_tx_obj.pushKV("witness", HexStr(witness_stack[0]));
+    }
+    return coinbase_tx_obj;
+}
+
 UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIndex& tip, const CBlockIndex& blockindex, TxVerbosity verbosity, const uint256 pow_limit)
 {
     UniValue result = blockheaderToJSON(blockman, tip, blockindex, pow_limit);
@@ -219,6 +237,10 @@ UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIn
     result.pushKV("strippedsize", ::GetSerializeSize(TX_NO_WITNESS(block)));
     result.pushKV("size", ::GetSerializeSize(TX_WITH_WITNESS(block)));
     result.pushKV("weight", ::GetBlockWeight(block));
+
+    CHECK_NONFATAL(!block.vtx.empty());
+    result.pushKV("coinbase_tx", coinbaseTxToJSON(*block.vtx[0]));
+
     UniValue txs(UniValue::VARR);
     txs.reserve(block.vtx.size());
 
@@ -839,6 +861,14 @@ static RPCHelpMan getblock()
                     {RPCResult::Type::NUM, "size", "The block size"},
                     {RPCResult::Type::NUM, "strippedsize", "The block size excluding witness data"},
                     {RPCResult::Type::NUM, "weight", "The block weight as defined in BIP 141"},
+                    {RPCResult::Type::OBJ, "coinbase_tx", "Coinbase transaction metadata",
+                    {
+                        {RPCResult::Type::NUM, "version", "The coinbase transaction version"},
+                        {RPCResult::Type::NUM, "locktime", "The coinbase transaction's locktime (nLockTime)"},
+                        {RPCResult::Type::NUM, "sequence", "The coinbase input's sequence number (nSequence)"},
+                        {RPCResult::Type::STR_HEX, "coinbase", "The coinbase input's script"},
+                        {RPCResult::Type::STR_HEX, "witness", /*optional=*/true, "The coinbase input's first (and only) witness stack element, if present"},
+                    }},
                     {RPCResult::Type::NUM, "height", "The block height or index"},
                     {RPCResult::Type::NUM, "version", "The block version"},
                     {RPCResult::Type::STR_HEX, "versionHex", "The block version formatted in hexadecimal"},
@@ -948,7 +978,7 @@ std::optional<int> GetPruneHeight(const BlockManager& blockman, const CChain& ch
     if (!first_block || !chain_tip) return std::nullopt;
 
     // If the chain tip is pruned, everything is pruned.
-    if (!((chain_tip->nStatus & BLOCK_HAVE_MASK) == BLOCK_HAVE_MASK)) return chain_tip->nHeight;
+    if ((chain_tip->nStatus & BLOCK_HAVE_MASK) != BLOCK_HAVE_MASK) return chain_tip->nHeight;
 
     const auto& first_unpruned{blockman.GetFirstBlock(*chain_tip, /*status_mask=*/BLOCK_HAVE_MASK, first_block)};
     if (&first_unpruned == first_block) {
@@ -1455,7 +1485,7 @@ RPCHelpMan getblockchaininfo()
                 {RPCResult::Type::STR_HEX, "chainwork", "total amount of work in active chain, in hexadecimal"},
                 {RPCResult::Type::NUM, "size_on_disk", "the estimated size of the block and undo files on disk"},
                 {RPCResult::Type::BOOL, "pruned", "if the blocks are subject to pruning"},
-                {RPCResult::Type::NUM, "pruneheight", /*optional=*/true, "height of the last block pruned, plus one (only present if pruning is enabled)"},
+                {RPCResult::Type::NUM, "pruneheight", /*optional=*/true, "the first block unpruned, all previous blocks were pruned (only present if pruning is enabled)"},
                 {RPCResult::Type::BOOL, "automatic_pruning", /*optional=*/true, "whether automatic pruning is enabled (only present if pruning is enabled)"},
                 {RPCResult::Type::NUM, "prune_target_size", /*optional=*/true, "the target size used by pruning (only present if automatic pruning is enabled)"},
                 {RPCResult::Type::STR_HEX, "signet_challenge", /*optional=*/true, "the block challenge (aka. block script), in hexadecimal (only present if the current network is a signet)"},
@@ -1698,7 +1728,7 @@ static RPCHelpMan getchaintips()
         if (active_chain.Contains(block)) {
             // This block is part of the currently active chain.
             status = "active";
-        } else if (block->nStatus & BLOCK_FAILED_MASK) {
+        } else if (block->nStatus & BLOCK_FAILED_VALID) {
             // This block or one of its ancestors is invalid.
             status = "invalid";
         } else if (!block->HaveNumChainTxs()) {
