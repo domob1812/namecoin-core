@@ -22,26 +22,26 @@ const TranslateFn G_TRANSLATION_FUN{nullptr};
 static constexpr auto HELP_USAGE = R"(Usage: %s [OPTIONS] COMMAND...
 
 Options:
-  -m, --multiprocess     Run multiprocess binaries bitcoin-node, bitcoin-gui.
-  -M, --monolithic       Run monolithic binaries bitcoind, bitcoin-qt. (Default behavior)
+  -m, --multiprocess     Run multiprocess binaries namecoin-node, namecoin-gui.
+  -M, --monolithic       Run monolithic binaries namecoind, namecoin-qt. (Default behavior)
   -v, --version          Show version information
   -h, --help             Show full help message
 
 Commands:
-  gui [ARGS]     Start GUI, equivalent to running 'bitcoin-qt [ARGS]' or 'bitcoin-gui [ARGS]'.
-  node [ARGS]    Start node, equivalent to running 'bitcoind [ARGS]' or 'bitcoin-node [ARGS]'.
-  rpc [ARGS]     Call RPC method, equivalent to running 'bitcoin-cli -named [ARGS]'.
-  wallet [ARGS]  Call wallet command, equivalent to running 'bitcoin-wallet [ARGS]'.
-  tx [ARGS]      Manipulate hex-encoded transactions, equivalent to running 'bitcoin-tx [ARGS]'.
+  gui [ARGS]     Start GUI, equivalent to running 'namecoin-qt [ARGS]' or 'namecoin-gui [ARGS]'.
+  node [ARGS]    Start node, equivalent to running 'namecoind [ARGS]' or 'namecoin-node [ARGS]'.
+  rpc [ARGS]     Call RPC method, equivalent to running 'namecoin-cli -named [ARGS]'.
+  wallet [ARGS]  Call wallet command, equivalent to running 'namecoin-wallet [ARGS]'.
+  tx [ARGS]      Manipulate hex-encoded transactions, equivalent to running 'namecoin-tx [ARGS]'.
   help           Show full help message.
 )";
 
 static constexpr auto HELP_FULL = R"(
 Additional less commonly used commands:
-  bench [ARGS]      Run bench command, equivalent to running 'bench_bitcoin [ARGS]'.
-  chainstate [ARGS] Run bitcoin kernel chainstate util, equivalent to running 'bitcoin-chainstate [ARGS]'.
-  test [ARGS]       Run unit tests, equivalent to running 'test_bitcoin [ARGS]'.
-  test-gui [ARGS]   Run GUI unit tests, equivalent to running 'test_bitcoin-qt [ARGS]'.
+  bench [ARGS]      Run bench command, equivalent to running 'bench_namecoin [ARGS]'.
+  chainstate [ARGS] Run namecoin kernel chainstate util, equivalent to running 'namecoin-chainstate [ARGS]'.
+  test [ARGS]       Run unit tests, equivalent to running 'test_namecoin [ARGS]'.
+  test-gui [ARGS]   Run GUI unit tests, equivalent to running 'test_namecoin-qt [ARGS]'.
 )";
 
 static constexpr auto HELP_SHORT = R"(
