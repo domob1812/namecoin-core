@@ -294,7 +294,7 @@ if(ENABLE_IPC)
     bitcoin_node
     bitcoin_ipc
   )
-  import_plugins(bitcoin-gui)
+  import_plugins(namecoin-gui)
   install_binary_component(namecoin-gui INTERNAL)
   if(WIN32)
     set_target_properties(namecoin-gui PROPERTIES WIN32_EXECUTABLE TRUE)
