@@ -234,6 +234,9 @@ ifneq ($(host),$(build))
 $(1)_cmake += -DCMAKE_SYSTEM_NAME=$($(host_os)_cmake_system_name)
 $(1)_cmake += -DCMAKE_C_COMPILER_TARGET=$(host)
 $(1)_cmake += -DCMAKE_CXX_COMPILER_TARGET=$(host)
+ifneq ($(findstring darwin,$(host)),)
+$(1)_cmake += -DCMAKE_INSTALL_NAME_TOOL=`which llvm-install-name-tool`
+endif
 endif
 endif
 endef

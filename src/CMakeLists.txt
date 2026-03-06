@@ -312,7 +312,7 @@ if(BUILD_BITCOIN_BIN)
   add_windows_resources(namecoin bitcoin-res.rc)
   add_windows_application_manifest(namecoin)
   target_link_libraries(namecoin core_interface bitcoin_common bitcoin_util)
-  install_binary_component(namecoin HAS_MANPAGE)
+  install_binary_component(namecoin)
 endif()
 
 # Bitcoin Core bitcoind.

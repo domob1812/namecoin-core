@@ -86,3 +86,5 @@ darwin_cmake_system_name=Darwin
 # Darwin version, which corresponds to OSX_MIN_VERSION.
 # See https://en.wikipedia.org/wiki/Darwin_(operating_system)
 darwin_cmake_system_version=20.1
+
+darwin_INSTALL_NAME_TOOL=$(shell $(SHELL) $(.SHELLFLAGS) "command -v llvm-install-name-tool")

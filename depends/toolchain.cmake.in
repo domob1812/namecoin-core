@@ -81,6 +81,10 @@ set(CMAKE_STRIP "@STRIP@")
 set(CMAKE_OBJCOPY "@OBJCOPY@")
 set(CMAKE_OBJDUMP "@OBJDUMP@")
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  set(CMAKE_INSTALL_NAME_TOOL "@INSTALL_NAME_TOOL@")
+endif()
+
 # Using our own built dependencies should not be
 # affected by a potentially random environment.
 set(CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH OFF)
