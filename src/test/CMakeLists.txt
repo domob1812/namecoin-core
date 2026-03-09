@@ -58,6 +58,7 @@ add_executable(test_namecoin
   miniminer_tests.cpp
   miniscript_tests.cpp
   minisketch_tests.cpp
+  mock_process.cpp
   multisig_tests.cpp
   name_tests.cpp
   name_applications_tests.cpp
@@ -195,6 +196,8 @@ function(add_boost_test source_file)
   list(TRANSFORM test_suite_macro
     REPLACE "(BOOST_FIXTURE_TEST_SUITE|BOOST_AUTO_TEST_SUITE)\\(" ""
   )
+  # The mock_process test suite does not contain unit tests.
+  list(REMOVE_ITEM test_suite_macro "mock_process")
   foreach(test_suite_name IN LISTS test_suite_macro)
     add_test(NAME ${test_suite_name}
       COMMAND test_namecoin --run_test=${test_suite_name} --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT

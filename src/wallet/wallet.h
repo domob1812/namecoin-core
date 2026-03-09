@@ -1083,6 +1083,9 @@ public:
     //! Returns nullopt when no descriptor has the key or if the wallet is locked.
     std::optional<CKey> GetKey(const CKeyID& keyid) const;
 
+    //! Disconnect chain notifications and wait for all notifications to be processed
+    void DisconnectChainNotifications();
+
     std::map<Txid, CMutableTransaction> queuedTransactionMap;
 
     bool QueuedTransactionExists(const Txid &txid) const;
