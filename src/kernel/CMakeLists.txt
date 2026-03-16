@@ -59,7 +59,6 @@ add_library(namecoinkernel
   ../script/solver.cpp
   ../signet.cpp
   ../streams.cpp
-  ../support/lockedpool.cpp
   ../sync.cpp
   ../txdb.cpp
   ../txgraph.cpp

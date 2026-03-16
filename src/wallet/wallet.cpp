@@ -581,16 +581,26 @@ void CWallet::UpgradeDescriptorCache()
  * derivation parameters (should take at least 100ms) and encrypt the master key. */
 static bool EncryptMasterKey(const SecureString& wallet_passphrase, const CKeyingMaterial& plain_master_key, CMasterKey& master_key)
 {
-    constexpr MillisecondsDouble target{100};
-    auto start{SteadyClock::now()};
+    constexpr MillisecondsDouble target_time{100};
     CCrypter crypter;
 
-    crypter.SetKeyFromPassphrase(wallet_passphrase, master_key.vchSalt, master_key.nDeriveIterations, master_key.nDerivationMethod);
-    master_key.nDeriveIterations = static_cast<unsigned int>(master_key.nDeriveIterations * target / (SteadyClock::now() - start));
+    // Get the weighted average of iterations we can do in 100ms over 2 runs.
+    for (int i = 0; i < 2; i++){
+        auto start_time{NodeClock::now()};
+        crypter.SetKeyFromPassphrase(wallet_passphrase, master_key.vchSalt, master_key.nDeriveIterations, master_key.nDerivationMethod);
+        auto elapsed_time{NodeClock::now() - start_time};
 
-    start = SteadyClock::now();
-    crypter.SetKeyFromPassphrase(wallet_passphrase, master_key.vchSalt, master_key.nDeriveIterations, master_key.nDerivationMethod);
-    master_key.nDeriveIterations = (master_key.nDeriveIterations + static_cast<unsigned int>(master_key.nDeriveIterations * target / (SteadyClock::now() - start))) / 2;
+        if (elapsed_time <= 0s) {
+            // We are probably in a test with a mocked clock.
+            master_key.nDeriveIterations = CMasterKey::DEFAULT_DERIVE_ITERATIONS;
+            break;
+        }
+
+        // target_iterations : elapsed_iterations :: target_time : elapsed_time
+        unsigned int target_iterations = master_key.nDeriveIterations * target_time / elapsed_time;
+        // Get the weighted average with previous runs.
+        master_key.nDeriveIterations = (i * master_key.nDeriveIterations + target_iterations) / (i + 1);
+    }
 
     if (master_key.nDeriveIterations < CMasterKey::DEFAULT_DERIVE_ITERATIONS) {
         master_key.nDeriveIterations = CMasterKey::DEFAULT_DERIVE_ITERATIONS;
@@ -1108,7 +1118,11 @@ CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const TxState& state, const 
     }
 
     //// debug print
-    WalletLogPrintf("AddToWallet %s  %s%s %s\n", hash.ToString(), (fInsertedNew ? "new" : ""), (fUpdated ? "update" : ""), TxStateString(state));
+    std::string status{"no-change"};
+    if (fInsertedNew || fUpdated) {
+        status = fInsertedNew ? (fUpdated ? "new, update" : "new") : "update";
+    }
+    WalletLogPrintf("AddToWallet %s %s %s", hash.ToString(), status, TxStateString(state));
 
     // Write to disk
     if (fInsertedNew || fUpdated)
@@ -2398,15 +2412,6 @@ DBErrors CWallet::PopulateWalletFromDB(bilingual_str& error, std::vector<bilingu
     Assert(m_spk_managers.empty());
     Assert(m_wallet_flags == 0);
     DBErrors nLoadWalletRet = WalletBatch(GetDatabase()).LoadWallet(this);
-    if (nLoadWalletRet == DBErrors::NEED_REWRITE)
-    {
-        if (GetDatabase().Rewrite())
-        {
-            for (const auto& spk_man_pair : m_spk_managers) {
-                spk_man_pair.second->RewriteDB();
-            }
-        }
-    }
 
     if (m_spk_managers.empty()) {
         assert(m_external_spk_managers.empty());
@@ -2434,9 +2439,6 @@ DBErrors CWallet::PopulateWalletFromDB(bilingual_str& error, std::vector<bilingu
         break;
     case DBErrors::EXTERNAL_SIGNER_SUPPORT_REQUIRED:
         error = strprintf(_("Error loading %s: External signer wallet being loaded without external signer support compiled"), wallet_file);
-        break;
-    case DBErrors::NEED_REWRITE:
-        error = strprintf(_("Wallet needed to be rewritten: restart %s to complete"), CLIENT_NAME);
         break;
     case DBErrors::UNKNOWN_DESCRIPTOR:
         error = strprintf(_("Unrecognized descriptor found. Loading wallet %s\n\n"
@@ -4128,14 +4130,16 @@ util::Result<void> CWallet::ApplyMigrationData(WalletBatch& local_wallet_batch, 
                 // Mark as to remove from the migrated wallet only if it does not also belong to it
                 if (!is_mine) {
                     txids_to_delete.push_back(hash);
+                    continue;
                 }
-                continue;
             }
         }
         if (!is_mine) {
             // Both not ours and not in the watchonly wallet
             return util::Error{strprintf(_("Error: Transaction %s in wallet cannot be identified to belong to migrated wallets"), wtx->GetHash().GetHex())};
         }
+        // Rewrite the transaction so that anything that may have changed about it in memory also persists to disk
+        local_wallet_batch.WriteTx(*wtx);
     }
 
     // Do the removes
