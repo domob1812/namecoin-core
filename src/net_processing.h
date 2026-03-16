@@ -63,7 +63,6 @@ static const unsigned int THRESHOLD_HEADERS_SIZE = (4 << 20); // 4 MiB
 struct CNodeStateStats {
     int nSyncHeight = -1;
     int nCommonHeight = -1;
-    int m_starting_height = -1;
     std::chrono::microseconds m_ping_wait;
     std::vector<int> vHeightInFlight;
     bool m_relay_txs;
