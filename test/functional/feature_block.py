@@ -48,6 +48,7 @@ from test_framework.script import (
     sign_input_legacy,
 )
 from test_framework.script_util import (
+    key_to_p2pk_script,
     script_to_p2sh_script,
 )
 from test_framework.test_framework import BitcoinTestFramework
@@ -87,7 +88,6 @@ class FullBlockTest(BitcoinTestFramework):
         self.num_nodes = 1
         self.setup_clean_chain = True
         self.extra_args = [[
-            '-acceptnonstdtxn=1',  # This is a consensus block test, we don't care about tx policy
             '-testactivationheight=bip34@2',
         ]]
 
@@ -1085,31 +1085,24 @@ class FullBlockTest(BitcoinTestFramework):
         #
         #    b78 creates a tx, which is spent in b79. After b82, both should be in mempool
         #
-        #    The tx'es must be unsigned and pass the node's mempool policy.  It is unsigned for the
-        #    rather obscure reason that the Python signature code does not distinguish between
-        #    Low-S and High-S values (whereas the bitcoin code has custom code which does so);
-        #    as a result of which, the odds are 50% that the python code will use the right
-        #    value and the transaction will be accepted into the mempool. Until we modify the
-        #    test framework to support low-S signing, we are out of luck.
-        #
-        #    To get around this issue, we construct transactions which are not signed and which
-        #    spend to OP_TRUE.  If the standard-ness rules change, this test would need to be
-        #    updated.  (Perhaps to spend to a P2SH OP_TRUE script)
+        #    The resurrected transactions must pass the node's mempool policy, so create
+        #    and spend standard outputs (P2PK using the coinbase pubkey to keep it simple).
         self.log.info("Test transaction resurrection during a re-org")
+        standard_output_script = key_to_p2pk_script(self.coinbase_pubkey)
         self.move_tip(76)
         self.next_block(77)
-        tx77 = self.create_and_sign_transaction(out[24], 5 * COIN)
+        tx77 = self.create_and_sign_transaction(out[24], 5 * COIN, standard_output_script)
         b77 = self.update_block(77, [tx77])
         self.send_blocks([b77], True)
         self.save_spendable_output()
 
         self.next_block(78)
-        tx78 = self.create_tx(tx77, 0, 4 * COIN)
+        tx78 = self.create_and_sign_transaction(tx77, 4 * COIN, standard_output_script)
         b78 = self.update_block(78, [tx78])
         self.send_blocks([b78], True)
 
         self.next_block(79)
-        tx79 = self.create_tx(tx78, 0, 3 * COIN)
+        tx79 = self.create_and_sign_transaction(tx78, 3 * COIN, standard_output_script)
         b79 = self.update_block(79, [tx79])
         self.send_blocks([b79], True)
 
