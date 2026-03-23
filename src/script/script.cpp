@@ -152,9 +152,8 @@ std::string GetOpName(opcodetype opcode)
 
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 
-    default:
-        return "OP_UNKNOWN";
-    }
+    } // no default case, so the compiler can warn about missing cases
+    return "OP_UNKNOWN";
 }
 
 unsigned int CScript::GetSigOpCount(bool fAccurate) const

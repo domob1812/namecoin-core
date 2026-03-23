@@ -9,7 +9,6 @@
 #include <tinyformat.h>
 
 #include <memory>
-#include <span>
 #include <sstream>
 
 void CBlockHeader::SetAuxpow (std::unique_ptr<CAuxPow> apow)

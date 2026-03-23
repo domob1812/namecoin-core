@@ -43,8 +43,7 @@ target_link_libraries(bitcoin_wallet
     # FIXME: Get rid of this extra dependency linked in here compared
     # to upstream (it is used for the auxpow miner).
     bitcoin_node
-    $<TARGET_NAME_IF_EXISTS:unofficial::sqlite3::sqlite3>
-    $<TARGET_NAME_IF_EXISTS:SQLite::SQLite3>
+    SQLite3::SQLite3
     univalue
     Boost::headers
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
