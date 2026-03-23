@@ -1163,7 +1163,6 @@ static RPCHelpMan gettxoutsetinfo()
         LOCK(::cs_main);
         coins_view = &active_chainstate.CoinsDB();
         blockman = &active_chainstate.m_blockman;
-        pindex = blockman->LookupBlockIndex(coins_view->GetBestBlock());
     }
 
     if (!request.params[1].isNull()) {
@@ -1187,7 +1186,7 @@ static RPCHelpMan gettxoutsetinfo()
 
             // If a specific block was requested and the index has already synced past that height, we can return the
             // data already even though the index is not fully synced yet.
-            if (pindex->nHeight > summary.best_block_height) {
+            if (pindex && pindex->nHeight > summary.best_block_height) {
                 throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Unable to get data because coinstatsindex is still syncing. Current height: %d", summary.best_block_height));
             }
         }
@@ -1213,8 +1212,9 @@ static RPCHelpMan gettxoutsetinfo()
             ret.pushKV("disk_size", stats.nDiskSize);
         } else {
             CCoinsStats prev_stats{};
-            if (pindex->nHeight > 0) {
-                const std::optional<CCoinsStats> maybe_prev_stats = GetUTXOStats(coins_view, *blockman, hash_type, node.rpc_interruption_point, pindex->pprev, index_requested);
+            if (stats.nHeight > 0) {
+                const CBlockIndex& block_index = *CHECK_NONFATAL(WITH_LOCK(::cs_main, return blockman->LookupBlockIndex(stats.hashBlock)));
+                const std::optional<CCoinsStats> maybe_prev_stats = GetUTXOStats(coins_view, *blockman, hash_type, node.rpc_interruption_point, block_index.pprev, index_requested);
                 if (!maybe_prev_stats) {
                     throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
                 }
@@ -1353,7 +1353,7 @@ static RPCHelpMan verifychain()
                     {"nblocks", RPCArg::Type::NUM, RPCArg::DefaultHint{strprintf("%d, 0=all", DEFAULT_CHECKBLOCKS)}, "The number of blocks to check."},
                 },
                 RPCResult{
-                    RPCResult::Type::BOOL, "", "Verification finished successfully. If false, check debug.log for reason."},
+                    RPCResult::Type::BOOL, "", "Verification finished successfully. If false, check debug log for reason."},
                 RPCExamples{
                     HelpExampleCli("verifychain", "")
             + HelpExampleRpc("verifychain", "")
@@ -1576,7 +1576,8 @@ UniValue DeploymentInfo(const CBlockIndex* blockindex, const ChainstateManager& 
 RPCHelpMan getdeploymentinfo()
 {
     return RPCHelpMan{"getdeploymentinfo",
-        "Returns an object containing various state info regarding deployments of consensus changes.",
+        "Returns an object containing various state info regarding deployments of consensus changes.\n"
+        "Consensus changes for which the new rules are enforced from genesis are not listed in \"deployments\".",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Default{"hash of current chain tip"}, "The block hash at which to query deployment state"},
         },
@@ -2826,7 +2827,7 @@ static RPCHelpMan getdescriptoractivity()
                         {RPCResult::Type::OBJ, "output_spk", "", ScriptPubKeyDoc()},
                     }},
                     // TODO is the skip_type_check avoidable with a heterogeneous ARR?
-                }, /*skip_type_check=*/true},
+                }, {.skip_type_check=true}, },
             },
         },
         RPCExamples{
