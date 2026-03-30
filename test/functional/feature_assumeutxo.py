@@ -10,7 +10,6 @@ The assumeutxo value generated and used here is committed to in
 `CRegTestParams::m_assumeutxo_data` in `src/kernel/chainparams.cpp`.
 """
 import contextlib
-from shutil import rmtree
 
 from dataclasses import dataclass
 from test_framework.blocktools import (
@@ -192,7 +191,8 @@ class AssumeutxoTest(BitcoinTestFramework):
         expected_error(log_msg=error_details, error_msg=expected_error_msg)
 
         # resurrect node again
-        rmtree(chainstate_snapshot_path)
+        (chainstate_snapshot_path / "base_blockhash").unlink()
+        chainstate_snapshot_path.rmdir()
         self.start_node(0)
 
     def test_invalid_mempool_state(self, dump_output_path):
@@ -304,7 +304,7 @@ class AssumeutxoTest(BitcoinTestFramework):
         # Start test fresh by cleaning up node directories
         for node in (snapshot_node, ibd_node):
             self.stop_node(node.index)
-            rmtree(node.chain_path)
+            self.cleanup_folder(node.chain_path)
             self.start_node(node.index, extra_args=self.extra_args[node.index])
 
         # Sync-up headers chain on snapshot_node to load snapshot
@@ -541,6 +541,30 @@ class AssumeutxoTest(BitcoinTestFramework):
         assert_equal(utxo_info['txouts'], snapshot_num_coins)
         assert_equal(utxo_info['height'], SNAPSHOT_BASE_HEIGHT)
         assert_equal(utxo_info['bestblock'], snapshot_hash)
+
+        self.log.info("Check that getblockchaininfo returns information about the background validation process")
+        expected_keys = [
+            "snapshotheight",
+            "blocks",
+            "bestblockhash",
+            "mediantime",
+            "chainwork",
+            "verificationprogress"
+        ]
+        res = n1.getblockchaininfo()
+        assert "backgroundvalidation" in res.keys()
+        bv_res = res["backgroundvalidation"]
+        assert_equal(sorted(expected_keys), sorted(bv_res.keys()))
+        assert_equal(bv_res["snapshotheight"], SNAPSHOT_BASE_HEIGHT)
+        assert_equal(bv_res["blocks"], START_HEIGHT)
+        assert_equal(bv_res["bestblockhash"], n1.getblockhash(START_HEIGHT))
+        block = n1.getblockheader(bv_res["bestblockhash"])
+        assert_equal(bv_res["mediantime"], block["mediantime"])
+        assert_equal(bv_res["chainwork"], block["chainwork"])
+        background_tx_count = n1.getchaintxstats(blockhash=bv_res["bestblockhash"])["txcount"]
+        snapshot_tx_count = n1.getchaintxstats(blockhash=snapshot_hash)["txcount"]
+        expected_verification_progress = background_tx_count / snapshot_tx_count
+        assert_approx(bv_res["verificationprogress"], expected_verification_progress, vspan=0.01)
 
         # find coinbase output at snapshot height on node0 and scan for it on node1,
         # where the block is not available, but the snapshot was loaded successfully
