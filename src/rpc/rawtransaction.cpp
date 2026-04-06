@@ -215,9 +215,9 @@ PartiallySignedTransaction ProcessPSBT(const std::string& psbt_string, const std
     return psbtx;
 }
 
-static RPCHelpMan getrawtransaction()
+static RPCMethod getrawtransaction()
 {
-    return RPCHelpMan{
+    return RPCMethod{
                 "getrawtransaction",
 
                 "By default, this call only returns a transaction if it is in the mempool. If -txindex is enabled\n"
@@ -281,7 +281,7 @@ static RPCHelpMan getrawtransaction()
             + HelpExampleCli("getrawtransaction", "\"mytxid\" 1 \"myblockhash\"")
             + HelpExampleCli("getrawtransaction", "\"mytxid\" 2 \"myblockhash\"")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     ChainstateManager& chainman = EnsureChainman(node);
@@ -376,9 +376,9 @@ static RPCHelpMan getrawtransaction()
     };
 }
 
-static RPCHelpMan createrawtransaction()
+static RPCMethod createrawtransaction()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "createrawtransaction",
         "Create a transaction spending the given inputs and creating new outputs.\n"
                 "Outputs can be addresses or data.\n"
@@ -395,7 +395,7 @@ static RPCHelpMan createrawtransaction()
             + HelpExampleRpc("createrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"[{\\\"address\\\":0.01}]\"")
             + HelpExampleRpc("createrawtransaction", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\", \"[{\\\"data\\\":\\\"00010203\\\"}]\"")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     std::optional<bool> rbf;
     if (!request.params[3].isNull()) {
@@ -408,9 +408,9 @@ static RPCHelpMan createrawtransaction()
     };
 }
 
-static RPCHelpMan decoderawtransaction()
+static RPCMethod decoderawtransaction()
 {
-    return RPCHelpMan{"decoderawtransaction",
+    return RPCMethod{"decoderawtransaction",
                 "Return a JSON object representing the serialized, hex-encoded transaction.",
                 {
                     {"hexstring", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction hex string"},
@@ -430,7 +430,7 @@ static RPCHelpMan decoderawtransaction()
                     HelpExampleCli("decoderawtransaction", "\"hexstring\"")
             + HelpExampleRpc("decoderawtransaction", "\"hexstring\"")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     CMutableTransaction mtx;
 
@@ -449,9 +449,9 @@ static RPCHelpMan decoderawtransaction()
     };
 }
 
-static RPCHelpMan decodescript()
+static RPCMethod decodescript()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "decodescript",
         "Decode a hex-encoded script.\n",
         {
@@ -483,7 +483,7 @@ static RPCHelpMan decodescript()
             HelpExampleCli("decodescript", "\"hexstring\"")
           + HelpExampleRpc("decodescript", "\"hexstring\"")
         },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     UniValue r(UniValue::VOBJ);
     CScript script;
@@ -585,9 +585,9 @@ static RPCHelpMan decodescript()
     };
 }
 
-static RPCHelpMan combinerawtransaction()
+static RPCMethod combinerawtransaction()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "combinerawtransaction",
         "Combine multiple partially signed transactions into one transaction.\n"
                 "The combined transaction may be another partially signed transaction or a \n"
@@ -605,7 +605,7 @@ static RPCHelpMan combinerawtransaction()
                 RPCExamples{
                     HelpExampleCli("combinerawtransaction", R"('["myhex1", "myhex2", "myhex3"]')")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
 
     UniValue txs = request.params[0].get_array();
@@ -672,9 +672,9 @@ static RPCHelpMan combinerawtransaction()
     };
 }
 
-static RPCHelpMan signrawtransactionwithkey()
+static RPCMethod signrawtransactionwithkey()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "signrawtransactionwithkey",
         "Sign inputs for raw transaction (serialized, hex-encoded).\n"
                 "The second argument is an array of base58-encoded private\n"
@@ -738,7 +738,7 @@ static RPCHelpMan signrawtransactionwithkey()
                     HelpExampleCli("signrawtransactionwithkey", "\"myhex\" \"[\\\"key1\\\",\\\"key2\\\"]\"")
             + HelpExampleRpc("signrawtransactionwithkey", "\"myhex\", \"[\\\"key1\\\",\\\"key2\\\"]\"")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     CMutableTransaction mtx;
     if (!DecodeHexTx(mtx, request.params[0].get_str())) {
@@ -1013,9 +1013,9 @@ const RPCResult decodepsbt_outputs{
     }
 };
 
-static RPCHelpMan decodepsbt()
+static RPCMethod decodepsbt()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "decodepsbt",
         "Return a JSON object representing the serialized, base64-encoded partially signed transaction.",
                 {
@@ -1059,7 +1059,7 @@ static RPCHelpMan decodepsbt()
                 RPCExamples{
                     HelpExampleCli("decodepsbt", "\"psbt\"")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     // Unserialize the transactions
     PartiallySignedTransaction psbtx;
@@ -1515,9 +1515,9 @@ static RPCHelpMan decodepsbt()
     };
 }
 
-static RPCHelpMan combinepsbt()
+static RPCMethod combinepsbt()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "combinepsbt",
         "Combine multiple partially signed transactions into one transaction.\n"
                 "Implements the Combiner role.\n",
@@ -1534,7 +1534,7 @@ static RPCHelpMan combinepsbt()
                 RPCExamples{
                     HelpExampleCli("combinepsbt", R"('["mybase64_1", "mybase64_2", "mybase64_3"]')")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     // Unserialize the transactions
     std::vector<PartiallySignedTransaction> psbtxs;
@@ -1563,9 +1563,9 @@ static RPCHelpMan combinepsbt()
     };
 }
 
-static RPCHelpMan finalizepsbt()
+static RPCMethod finalizepsbt()
 {
-    return RPCHelpMan{"finalizepsbt",
+    return RPCMethod{"finalizepsbt",
                 "Finalize the inputs of a PSBT. If the transaction is fully signed, it will produce a\n"
                 "network serialized transaction which can be broadcast with sendrawtransaction. Otherwise a PSBT will be\n"
                 "created which has the final_scriptSig and final_scriptwitness fields filled for inputs that are complete.\n"
@@ -1586,7 +1586,7 @@ static RPCHelpMan finalizepsbt()
                 RPCExamples{
                     HelpExampleCli("finalizepsbt", "\"psbt\"")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     // Unserialize the transactions
     PartiallySignedTransaction psbtx;
@@ -1620,9 +1620,9 @@ static RPCHelpMan finalizepsbt()
     };
 }
 
-static RPCHelpMan createpsbt()
+static RPCMethod createpsbt()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "createpsbt",
         "Creates a transaction in the Partially Signed Transaction format.\n"
                 "Implements the Creator role.\n"
@@ -1635,7 +1635,7 @@ static RPCHelpMan createpsbt()
                 RPCExamples{
                     HelpExampleCli("createpsbt", "\"[{\\\"txid\\\":\\\"myid\\\",\\\"vout\\\":0}]\" \"[{\\\"address\\\":0.01}]\"")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
 
     std::optional<bool> rbf;
@@ -1663,9 +1663,9 @@ static RPCHelpMan createpsbt()
     };
 }
 
-static RPCHelpMan converttopsbt()
+static RPCMethod converttopsbt()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "converttopsbt",
         "Converts a network serialized transaction to a PSBT. This should be used only with createrawtransaction and fundrawtransaction\n"
                 "createpsbt and walletcreatefundedpsbt should be used for new applications.\n",
@@ -1690,7 +1690,7 @@ static RPCHelpMan converttopsbt()
                             "\nConvert the transaction to a PSBT\n"
                             + HelpExampleCli("converttopsbt", "\"rawtransaction\"")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     // parse hex string from parameter
     CMutableTransaction tx;
@@ -1731,9 +1731,9 @@ static RPCHelpMan converttopsbt()
     };
 }
 
-static RPCHelpMan utxoupdatepsbt()
+static RPCMethod utxoupdatepsbt()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "utxoupdatepsbt",
         "Updates all segwit inputs and outputs in a PSBT with data from output descriptors, the UTXO set, txindex, or the mempool.\n",
             {
@@ -1752,7 +1752,7 @@ static RPCHelpMan utxoupdatepsbt()
             RPCExamples {
                 HelpExampleCli("utxoupdatepsbt", "\"psbt\"")
             },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     // Parse descriptors, if any.
     FlatSigningProvider provider;
@@ -1778,9 +1778,9 @@ static RPCHelpMan utxoupdatepsbt()
     };
 }
 
-static RPCHelpMan joinpsbts()
+static RPCMethod joinpsbts()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "joinpsbts",
         "Joins multiple distinct PSBTs with different inputs and outputs into one PSBT with inputs and outputs from all of the PSBTs\n"
             "No input in any of the PSBTs can be in more than one of the PSBTs.\n",
@@ -1796,7 +1796,7 @@ static RPCHelpMan joinpsbts()
             RPCExamples {
                 HelpExampleCli("joinpsbts", "\"psbt\"")
             },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     // Unserialize the transactions
     std::vector<PartiallySignedTransaction> psbtxs;
@@ -1880,9 +1880,9 @@ static RPCHelpMan joinpsbts()
     };
 }
 
-static RPCHelpMan analyzepsbt()
+static RPCMethod analyzepsbt()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "analyzepsbt",
         "Analyzes and provides information about the current status of a PSBT and its inputs\n",
             {
@@ -1923,7 +1923,7 @@ static RPCHelpMan analyzepsbt()
             RPCExamples {
                 HelpExampleCli("analyzepsbt", "\"psbt\"")
             },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     // Unserialize the transaction
     PartiallySignedTransaction psbtx;
@@ -1990,9 +1990,9 @@ static RPCHelpMan analyzepsbt()
     };
 }
 
-RPCHelpMan descriptorprocesspsbt()
+RPCMethod descriptorprocesspsbt()
 {
-    return RPCHelpMan{
+    return RPCMethod{
         "descriptorprocesspsbt",
         "Update all segwit inputs in a PSBT with information from output descriptors, the UTXO set or the mempool. \n"
                 "Then, sign the inputs we are able to with information from the output descriptors. ",
@@ -2028,7 +2028,7 @@ RPCHelpMan descriptorprocesspsbt()
                     HelpExampleCli("descriptorprocesspsbt", "\"psbt\" \"[\\\"descriptor1\\\", \\\"descriptor2\\\"]\"") +
                     HelpExampleCli("descriptorprocesspsbt", "\"psbt\" \"[{\\\"desc\\\":\\\"mydescriptor\\\", \\\"range\\\":21}]\"")
                 },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        [](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     // Add descriptor information to a signing provider
     FlatSigningProvider provider;

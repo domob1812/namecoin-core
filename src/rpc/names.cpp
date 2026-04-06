@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2025 Daniel Kraft
+// Copyright (c) 2014-2026 Daniel Kraft
 // Copyright (c) 2020 yanmaani
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -494,7 +494,7 @@ NameOptionsHelp::buildRpcArg () const
 namespace
 {
 
-RPCHelpMan
+RPCMethod
 name_show ()
 {
   NameOptionsHelp optHelp;
@@ -505,7 +505,7 @@ name_show ()
       .withArg ("allowExpired", RPCArg::Type::BOOL, "depends on -allowexpired",
                 "Whether to throw error for expired names");
 
-  return RPCHelpMan ("name_show",
+  return RPCMethod ("name_show",
       "Looks up the current data for the given name.  Fails if the name doesn't exist.\n",
       {
           {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "The name to query for"},
@@ -519,7 +519,7 @@ name_show ()
         + HelpExampleCli ("name_show", R"("myname" '{"allowExpired": false}')")
         + HelpExampleRpc ("name_show", "\"myname\"")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   auto& chainman = EnsureChainman (EnsureAnyNodeContext (request));
 
@@ -573,7 +573,7 @@ name_show ()
 
 /* ************************************************************************** */
 
-RPCHelpMan
+RPCMethod
 name_history ()
 {
   NameOptionsHelp optHelp;
@@ -582,7 +582,7 @@ name_history ()
       .withValueEncoding ()
       .withByHash ();
 
-  return RPCHelpMan ("name_history",
+  return RPCMethod ("name_history",
       "Looks up the current and all past data for the given name.  -namehistory must be enabled.\n",
       {
           {"name", RPCArg::Type::STR, RPCArg::Optional::NO, "The name to query for"},
@@ -599,7 +599,7 @@ name_history ()
           HelpExampleCli ("name_history", "\"myname\"")
         + HelpExampleRpc ("name_history", "\"myname\"")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   auto& chainman = EnsureChainman (EnsureAnyNodeContext (request));
 
@@ -649,7 +649,7 @@ name_history ()
 
 /* ************************************************************************** */
 
-RPCHelpMan
+RPCMethod
 name_scan ()
 {
   NameOptionsHelp optHelp;
@@ -665,7 +665,7 @@ name_scan ()
       .withArg ("regexp", RPCArg::Type::STR,
                 "Filter for names matching the regexp");
 
-  return RPCHelpMan ("name_scan",
+  return RPCMethod ("name_scan",
       "Lists names in the database.\n",
       {
           {"start", RPCArg::Type::STR, RPCArg::Default{""}, "Skip initially to this name"},
@@ -685,7 +685,7 @@ name_scan ()
         + HelpExampleCli ("name_scan", "\"d/abc\" 10")
         + HelpExampleRpc ("name_scan", "\"d/abc\"")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   auto& chainman = EnsureChainman (EnsureAnyNodeContext (request));
 
@@ -798,7 +798,7 @@ name_scan ()
 
 /* ************************************************************************** */
 
-RPCHelpMan
+RPCMethod
 name_pending ()
 {
   NameOptionsHelp optHelp;
@@ -806,7 +806,7 @@ name_pending ()
       .withNameEncoding ()
       .withValueEncoding ();
 
-  return RPCHelpMan ("name_pending",
+  return RPCMethod ("name_pending",
       "Lists unconfirmed name operations in the mempool.\n"
       "\nIf a name is given, only check for operations on this name.\n",
       {
@@ -825,7 +825,7 @@ name_pending ()
         + HelpExampleCli ("name_pending", "\"d/domob\"")
         + HelpExampleRpc ("name_pending", "")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   MaybeWalletForRequest wallet(request);
   auto& mempool = EnsureMemPool (EnsureAnyNodeContext (request));
@@ -993,10 +993,10 @@ PerformNameRawtx (const unsigned nOut, const UniValue& nameOp,
 
 } // anonymous namespace
 
-RPCHelpMan
+RPCMethod
 namerawtransaction ()
 {
-  return RPCHelpMan ("namerawtransaction",
+  return RPCMethod ("namerawtransaction",
       "Adds a name operation to an existing raw transaction.\n"
       "\nUse createrawtransaction first to create the basic transaction, including the required inputs and outputs also for the name.\n",
       {
@@ -1023,7 +1023,7 @@ namerawtransaction ()
         + HelpExampleCli ("namerawtransaction", R"("raw tx hex" 1 "{\"op\":\"name_update\",\"name\":\"my-name\",\"value\":\"new value\")")
         + HelpExampleRpc ("namerawtransaction", R"("raw tx hex", 1, "{\"op\":\"name_update\",\"name\":\"my-name\",\"value\":\"new value\")")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   CMutableTransaction mtx;
   if (!DecodeHexTx (mtx, request.params[0].get_str (), true))
@@ -1040,10 +1040,10 @@ namerawtransaction ()
   );
 }
 
-RPCHelpMan
+RPCMethod
 namepsbt ()
 {
-  return RPCHelpMan ("namepsbt",
+  return RPCMethod ("namepsbt",
       "Adds a name operation to an existing PSBT.\n"
       "\nUse createpsbt first to create the basic transaction, including the required inputs and outputs also for the name.\n",
       {
@@ -1070,7 +1070,7 @@ namepsbt ()
         + HelpExampleCli ("namepsbt", R"("psbt" 1 "{\"op\":\"name_update\",\"name\":\"my-name\",\"value\":\"new value\")")
         + HelpExampleRpc ("namepsbt", R"("psbt", 1, "{\"op\":\"name_update\",\"name\":\"my-name\",\"value\":\"new value\")")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   PartiallySignedTransaction psbtx;
   std::string error;
@@ -1094,10 +1094,10 @@ namepsbt ()
 
 /* ************************************************************************** */
 
-RPCHelpMan
+RPCMethod
 name_checkdb ()
 {
-  return RPCHelpMan ("name_checkdb",
+  return RPCMethod ("name_checkdb",
       "Validates the name DB's consistency.\n"
       "\nRoughly between blocks 139,000 and 180,000, this call is expected to fail due to the historic 'name stealing' bug.\n",
       {},
@@ -1106,7 +1106,7 @@ name_checkdb ()
           HelpExampleCli ("name_checkdb", "")
         + HelpExampleRpc ("name_checkdb", "")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   node::NodeContext& node = EnsureAnyNodeContext (request);
   ChainstateManager& chainman = EnsureChainman (node);

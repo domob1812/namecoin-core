@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2024 Daniel Kraft
+// Copyright (c) 2014-2026 Daniel Kraft
 // Copyright (c) 2021 yanmaani
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -181,7 +181,7 @@ SendNameOutput (const JSONRPCRequest& request,
 } // anonymous namespace
 /* ************************************************************************** */
 
-RPCHelpMan
+RPCMethod
 name_list ()
 {
   NameOptionsHelp optHelp;
@@ -189,7 +189,7 @@ name_list ()
       .withNameEncoding ()
       .withValueEncoding ();
 
-  return RPCHelpMan ("name_list",
+  return RPCMethod ("name_list",
       "Shows the status of all names in the wallet.\n",
       {
           {"name", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Only include this name"},
@@ -207,7 +207,7 @@ name_list ()
         + HelpExampleCli ("name_list", "\"myname\"")
         + HelpExampleRpc ("name_list", "")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest (request);
   if (!wallet)
@@ -367,7 +367,7 @@ saltMatchesHash(const valtype& name, const valtype& rand, const valtype& expecte
 
 /* ************************************************************************** */
 
-RPCHelpMan
+RPCMethod
 name_new ()
 {
   NameOptionsHelp optHelp;
@@ -377,7 +377,7 @@ name_new ()
       .withArg ("allowExisting", RPCArg::Type::BOOL, "false",
                 "If set, then the name_new is sent even if the name exists already");
 
-  return RPCHelpMan ("name_new",
+  return RPCMethod ("name_new",
       "Starts registration of the given name.  Must be followed up with name_firstupdate to finish the registration."
           + HELP_REQUIRING_PASSPHRASE,
       {
@@ -394,7 +394,7 @@ name_new ()
           HelpExampleCli ("name_new", "\"myname\"")
         + HelpExampleRpc ("name_new", "\"myname\"")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest (request);
   if (!wallet)
@@ -514,7 +514,7 @@ getNamePrevout (Chainstate& chainState, const Txid& txid,
 
 }  // anonymous namespace
 
-RPCHelpMan
+RPCMethod
 name_firstupdate ()
 {
   /* There is an undocumented sixth argument that can be used to disable
@@ -529,7 +529,7 @@ name_firstupdate ()
       .withValueEncoding ()
       .withWriteOptions ();
 
-  return RPCHelpMan ("name_firstupdate",
+  return RPCMethod ("name_firstupdate",
             "Finishes the registration of a name.  Depends on name_new being already issued."
                 + HELP_REQUIRING_PASSPHRASE,
             {
@@ -545,7 +545,7 @@ name_firstupdate ()
                 HelpExampleCli ("name_firstupdate", "\"myname\", \"555844f2db9c7f4b25da6cb8277596de45021ef2\" \"a77ceb22aa03304b7de64ec43328974aeaca211c37dd29dcce4ae461bb80ca84\", \"my-value\"")
               + HelpExampleRpc ("name_firstupdate", "\"myname\", \"555844f2db9c7f4b25da6cb8277596de45021ef2\" \"a77ceb22aa03304b7de64ec43328974aeaca211c37dd29dcce4ae461bb80ca84\", \"my-value\"")
             },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest (request);
   if (!wallet)
@@ -719,7 +719,7 @@ name_firstupdate ()
 
 /* ************************************************************************** */
 
-RPCHelpMan
+RPCMethod
 name_update ()
 {
   NameOptionsHelp optHelp;
@@ -728,7 +728,7 @@ name_update ()
       .withValueEncoding ()
       .withWriteOptions ();
 
-  return RPCHelpMan ("name_update",
+  return RPCMethod ("name_update",
       "Updates a name and possibly transfers it."
           + HELP_REQUIRING_PASSPHRASE,
       {
@@ -741,7 +741,7 @@ name_update ()
           HelpExampleCli ("name_update", "\"myname\", \"new-value\"")
         + HelpExampleRpc ("name_update", "\"myname\", \"new-value\"")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest (request);
   if (!wallet)
@@ -842,10 +842,10 @@ name_update ()
 
 /* ************************************************************************** */
 
-RPCHelpMan
+RPCMethod
 queuerawtransaction ()
 {
-  return RPCHelpMan ("queuerawtransaction",
+  return RPCMethod ("queuerawtransaction",
       "Queue a transaction for future broadcast.",
       {
           {"hexstring", RPCArg::Type::STR, RPCArg::Optional::NO, "The hex string of the raw transaction"},
@@ -855,7 +855,7 @@ queuerawtransaction ()
           HelpExampleCli("queuerawtransaction", "txhex") +
           HelpExampleRpc("queuerawtransaction", "txhex")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest (request);
   if (!wallet) return NullUniValue;
@@ -911,10 +911,10 @@ queuerawtransaction ()
 
 /* ************************************************************************** */
 
-RPCHelpMan
+RPCMethod
 dequeuetransaction ()
 {
-  return RPCHelpMan ("dequeuetransaction",
+  return RPCMethod ("dequeuetransaction",
       "Remove a transaction from the queue.",
       {
           {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction ID of the transaction to be dequeued"},
@@ -924,7 +924,7 @@ dequeuetransaction ()
           HelpExampleCli("dequeuetransaction", "txid") +
           HelpExampleRpc("dequeuetransaction", "txid")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest (request);
   if (!wallet) return NullUniValue;
@@ -945,10 +945,10 @@ dequeuetransaction ()
 
 /* ************************************************************************** */
 
-RPCHelpMan
+RPCMethod
 listqueuedtransactions ()
 {
-  return RPCHelpMan{"listqueuedtransactions",
+  return RPCMethod{"listqueuedtransactions",
       "List the transactions that are queued for future broadcast.\n",
       {
       },
@@ -965,7 +965,7 @@ listqueuedtransactions ()
           HelpExampleCli("listqueuedtransactions", "") +
           HelpExampleRpc("listqueuedtransactions", "")
       },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest (request);
   if (!wallet) return NullUniValue;
@@ -994,10 +994,10 @@ listqueuedtransactions ()
 
 /* ************************************************************************** */
 
-RPCHelpMan
+RPCMethod
 sendtoname ()
 {
-  return RPCHelpMan{"sendtoname",
+  return RPCMethod{"sendtoname",
       "Send an amount to the owner of a name.\n"
       "\nIt is an error if the name is expired."
           + HELP_REQUIRING_PASSPHRASE,
@@ -1020,7 +1020,7 @@ sendtoname ()
       + HelpExampleCli ("sendtoname", "\"id/foobar\" 0.1 \"\" \"\" true")
       + HelpExampleRpc ("sendtoname", "\"id/foobar\", 0.1, \"donation\", \"seans outpost\"")
           },
-      [&] (const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+      [&] (const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
   std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest (request);
   if (!pwallet)

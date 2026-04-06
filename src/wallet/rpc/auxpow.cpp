@@ -129,9 +129,9 @@ ReservedKeysForMining g_mining_keys;
 
 } // anonymous namespace
 
-RPCHelpMan getauxblock()
+RPCMethod getauxblock()
 {
-    return RPCHelpMan{"getauxblock",
+    return RPCMethod{"getauxblock",
                 "Creates or submits a merge-mined block.\n"
                 "\nWithout arguments, creates a new block and returns information\n"
                 "required to merge-mine it.  With arguments, submits a solved\n"
@@ -162,7 +162,7 @@ RPCHelpMan getauxblock()
                     + HelpExampleCli("getauxblock", "\"hash\" \"serialised auxpow\"")
                     + HelpExampleRpc("getauxblock", "")
                 },
-                [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+                [&](const RPCMethod& self, const JSONRPCRequest& request) -> UniValue
 {
     if (request.params.size() != 0 && request.params.size() != 2)
         throw std::runtime_error(self.ToString());
