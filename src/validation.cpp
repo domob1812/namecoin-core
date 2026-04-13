@@ -3203,9 +3203,8 @@ CBlockIndex* Chainstate::FindMostWorkChain()
 
         // Check whether all blocks on the path between the currently active chain and the candidate are valid.
         // Just going until the active chain is an optimization, as we know all blocks in it are valid already.
-        CBlockIndex *pindexTest = pindexNew;
         bool fInvalidAncestor = false;
-        while (pindexTest && !m_chain.Contains(pindexTest)) {
+        for (CBlockIndex *pindexTest = pindexNew; pindexTest && !m_chain.Contains(pindexTest); pindexTest = pindexTest->pprev) {
             assert(pindexTest->HaveNumChainTxs() || pindexTest->nHeight == 0);
 
             // Pruned nodes may have entries in setBlockIndexCandidates for
@@ -3219,27 +3218,21 @@ CBlockIndex* Chainstate::FindMostWorkChain()
                 if (fFailedChain && (m_chainman.m_best_invalid == nullptr || pindexNew->nChainWork > m_chainman.m_best_invalid->nChainWork)) {
                     m_chainman.m_best_invalid = pindexNew;
                 }
-                CBlockIndex *pindexFailed = pindexNew;
                 // Remove the entire chain from the set.
-                while (pindexTest != pindexFailed) {
-                    if (fFailedChain) {
-                        pindexFailed->nStatus |= BLOCK_FAILED_VALID;
-                        m_blockman.m_dirty_blockindex.insert(pindexFailed);
-                    } else if (fMissingData) {
-                        // If we're missing data, then add back to m_blocks_unlinked,
-                        // so that if the block arrives in the future we can try adding
-                        // to setBlockIndexCandidates again.
+                for (CBlockIndex *pindexFailed = pindexNew; pindexFailed != pindexTest; pindexFailed = pindexFailed->pprev) {
+                    if (fMissingData && !fFailedChain) {
+                        // If we're missing data and not a descendant of an invalid block,
+                        // then add back to m_blocks_unlinked, so that if the block arrives in the future
+                        // we can try adding to setBlockIndexCandidates again.
                         m_blockman.m_blocks_unlinked.insert(
                             std::make_pair(pindexFailed->pprev, pindexFailed));
                     }
                     setBlockIndexCandidates.erase(pindexFailed);
-                    pindexFailed = pindexFailed->pprev;
                 }
                 setBlockIndexCandidates.erase(pindexTest);
                 fInvalidAncestor = true;
                 break;
             }
-            pindexTest = pindexTest->pprev;
         }
         if (!fInvalidAncestor)
             return pindexNew;
@@ -4192,7 +4185,7 @@ arith_uint256 CalculateClaimedHeadersWork(std::span<const CBlockHeader> headers)
  *  v0.12 and v0.15 (when no additional protection was in place) whereby an attacker could unboundedly
  *  grow our in-memory block index. See https://bitcoincore.org/en/2024/07/03/disclose-header-spam.
  */
-static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, BlockManager& blockman, const ChainstateManager& chainman, const CBlockIndex* pindexPrev) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, const ChainstateManager& chainman, const CBlockIndex* pindexPrev) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     AssertLockHeld(::cs_main);
     assert(pindexPrev != nullptr);
@@ -4342,7 +4335,7 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
             LogDebug(BCLog::VALIDATION, "header %s has prev block invalid: %s\n", hash.ToString(), block.hashPrevBlock.ToString());
             return state.Invalid(BlockValidationResult::BLOCK_INVALID_PREV, "bad-prevblk");
         }
-        if (!ContextualCheckBlockHeader(block, state, m_blockman, *this, pindexPrev)) {
+        if (!ContextualCheckBlockHeader(block, state, *this, pindexPrev)) {
             LogDebug(BCLog::VALIDATION, "%s: Consensus::ContextualCheckBlockHeader: %s, %s\n", __func__, hash.ToString(), state.ToString());
             return false;
         }
@@ -4623,7 +4616,7 @@ BlockValidationState TestBlockValidity(
      * - do run ContextualCheckBlock()
      */
 
-    if (!ContextualCheckBlockHeader(block, state, chainstate.m_blockman, chainstate.m_chainman, tip)) {
+    if (!ContextualCheckBlockHeader(block, state, chainstate.m_chainman, tip)) {
         if (state.IsValid()) NONFATAL_UNREACHABLE();
         return state;
     }

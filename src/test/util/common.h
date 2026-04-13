@@ -7,8 +7,9 @@
 
 #include <coins.h>
 
-#include <ostream>
+#include <chrono>
 #include <optional>
+#include <ostream>
 #include <string>
 
 /**
@@ -29,6 +30,12 @@ private:
 
 // Make types usable in BOOST_CHECK_* @{
 namespace std {
+template <typename Clock, typename Duration>
+inline std::ostream& operator<<(std::ostream& os, const std::chrono::time_point<Clock, Duration>& tp)
+{
+    return os << tp.time_since_epoch().count();
+}
+
 template <typename T> requires std::is_enum_v<T>
 inline std::ostream& operator<<(std::ostream& os, const T& e)
 {

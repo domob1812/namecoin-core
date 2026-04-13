@@ -352,6 +352,7 @@ BASE_SCRIPTS = [
     #'tool_bitcoin.py',
     'p2p_sendtxrcncl.py',
     'rpc_scantxoutset.py',
+    'feature_torcontrol.py',
     'feature_unsupported_utxo_db.py',
     # FIXME: Debug and re-enable
     #'mempool_cluster.py',
