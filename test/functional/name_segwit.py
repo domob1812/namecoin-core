@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2021 Daniel Kraft
+# Copyright (c) 2014-2026 Daniel Kraft
 # Distributed under the MIT/X11 software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -110,7 +110,7 @@ class NameSegwitTest (NameTestFramework):
     tip = self.node.getbestblockhash ()
     height = self.node.getblockcount () + 1
     nTime = self.node.getblockheader (tip)["mediantime"] + 1
-    block = create_block (int (tip, 16), create_coinbase (height), nTime,
+    block = create_block (int (tip, 16), create_coinbase (height), ntime=nTime,
                           version=4)
 
     block.vtx.append (tx)

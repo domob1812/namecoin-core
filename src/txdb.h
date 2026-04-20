@@ -41,14 +41,15 @@ public:
     explicit CCoinsViewDB(DBParams db_params, CoinsViewOptions options);
 
     std::optional<Coin> GetCoin(const COutPoint& outpoint) const override;
-    bool HaveCoin(const COutPoint &outpoint) const override;
+    std::optional<Coin> PeekCoin(const COutPoint& outpoint) const override;
+    bool HaveCoin(const COutPoint& outpoint) const override;
     uint256 GetBestBlock() const override;
     std::vector<uint256> GetHeadBlocks() const override;
     bool GetName(const valtype &name, CNameData &data) const override;
     bool GetNameHistory(const valtype &name, CNameHistory &data) const override;
     bool GetNamesForHeight(unsigned nHeight, std::set<valtype>& data) const override;
     CNameIterator* IterateNames() const override;
-    void BatchWrite(CoinsViewCacheCursor& cursor, const uint256 &hashBlock, const CNameCache& names) override;
+    void BatchWrite(CoinsViewCacheCursor& cursor, const uint256& block_hash, const CNameCache& names) override;
     std::unique_ptr<CCoinsViewCursor> Cursor() const override;
     bool ValidateNameDB(const Chainstate& chainState, const std::function<void()>& interruption_point) const override;
 

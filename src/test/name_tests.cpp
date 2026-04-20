@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_CASE (name_database)
  * This is necessary to define a "purely cached" view, since the iteration
  * over CCoinsViewCache always calls through to the base iteration.
  */
-class CDummyIterationView : public CCoinsView
+class CDummyIterationView : public CoinsViewEmpty
 {
 
 private:
@@ -211,11 +211,11 @@ private:
   public:
 
     void
-    seek (const valtype& start)
+    seek (const valtype& start) override
     {}
 
     bool
-    next (valtype& name, CNameData& data)
+    next (valtype& name, CNameData& data) override
     {
       return false;
     }
@@ -546,8 +546,7 @@ BOOST_AUTO_TEST_CASE (name_tx_verification)
   /* We use a basic coin view as standard situation for all the tests.
      Set it up with some basic input coins.  */
 
-  CCoinsView dummyView;
-  CCoinsViewCache view(&dummyView);
+  CCoinsViewCache view(&CoinsViewEmpty::Get ());
 
   const CScript scrNew = CNameScript::buildNameNew (addr, name1, rand);
   const CScript scrFirst = CNameScript::buildNameFirstupdate (addr, name1,
@@ -730,14 +729,12 @@ BOOST_AUTO_TEST_CASE (name_firstupdate_salt_length)
   const valtype correctRand(20, 'x');
   const valtype longRand(21, 'x');
 
-  CCoinsView dummyView;
-
   /* Builds and checks a firstupdate transaction for our test name and
      the given rand value and verify flags.  */
   const auto checkRand = [&] (const valtype& rand,
                               const script_verify_flags flags)
     {
-      CCoinsViewCache view(&dummyView);
+      CCoinsViewCache view(&CoinsViewEmpty::Get ());
 
       const CScript scrNew = CNameScript::buildNameNew (addr, name, rand);
       const CScript scrFirst = CNameScript::buildNameFirstupdate (addr, name,
@@ -778,8 +775,7 @@ BOOST_AUTO_TEST_CASE (name_updates_undo)
   const valtype value2 = DecodeName ("new-value", NameEncoding::ASCII);
   const CScript addr = getTestAddress ();
 
-  CCoinsView dummyView;
-  CCoinsViewCache view(&dummyView);
+  CCoinsViewCache view(&CoinsViewEmpty::Get ());
   CBlockUndo undo;
   CNameData data;
   CNameHistory history;
