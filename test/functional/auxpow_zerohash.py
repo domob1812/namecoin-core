@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2019-2025 Daniel Kraft
+# Copyright (c) 2019-2026 Daniel Kraft
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -115,7 +115,7 @@ class AuxpowZeroHashTest (BitcoinTestFramework):
     height = bestBlock["height"] + 1
     time = bestBlock["time"] + 1
 
-    block = create_block (tip, create_coinbase (height), time)
+    block = create_block (tip, create_coinbase (height), ntime=time)
     block.mark_auxpow ()
     newHash = block.hash_hex
 
