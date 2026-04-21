@@ -23,7 +23,7 @@ function(add_maintenance_targets)
     return()
   endif()
 
-  foreach(target IN ITEMS bitcoin namecoind namecoin-node namecoin-qt namecoin-gui namecoin-cli namecoin-tx namecoin-util namecoin-wallet test_namecoin bench_namecoin)
+  foreach(target IN ITEMS namecoin namecoind namecoin-node namecoin-qt namecoin-gui namecoin-cli namecoin-tx namecoin-util namecoin-wallet test_namecoin bench_namecoin)
     if(TARGET ${target})
       list(APPEND executables $<TARGET_FILE:${target}>)
     endif()
@@ -43,7 +43,7 @@ function(add_maintenance_targets)
 endfunction()
 
 function(add_windows_deploy_target)
-  if(MINGW AND TARGET bitcoin AND TARGET namecoin-qt AND TARGET namecoind AND TARGET namecoin-cli AND TARGET namecoin-tx AND TARGET namecoin-wallet AND TARGET namecoin-util AND TARGET test_namecoin)
+  if(MINGW AND TARGET namecoin AND TARGET namecoin-qt AND TARGET namecoind AND TARGET namecoin-cli AND TARGET namecoin-tx AND TARGET namecoin-wallet AND TARGET namecoin-util AND TARGET test_namecoin)
     find_program(MAKENSIS_EXECUTABLE makensis)
     if(NOT MAKENSIS_EXECUTABLE)
       add_custom_target(deploy
@@ -59,7 +59,7 @@ function(add_windows_deploy_target)
     add_custom_command(
       OUTPUT ${PROJECT_BINARY_DIR}/bitcoin-win64-setup.exe
       COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/release
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:bitcoin> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:bitcoin>
+      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:namecoin>
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-qt> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:namecoin-qt>
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoind> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:namecoind>
       COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-cli> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:namecoin-cli>
