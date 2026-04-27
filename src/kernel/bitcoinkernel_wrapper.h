@@ -341,8 +341,10 @@ public:
     Handle(Handle&& other) noexcept : m_ptr(other.m_ptr) { other.m_ptr = nullptr; }
     Handle& operator=(Handle&& other) noexcept
     {
-        DestroyFunc(m_ptr);
-        m_ptr = std::exchange(other.m_ptr, nullptr);
+        if (this != &other) {
+            DestroyFunc(m_ptr);
+            m_ptr = std::exchange(other.m_ptr, nullptr);
+        }
         return *this;
     }
 
@@ -924,6 +926,12 @@ public:
     {
         return BlockHeader{btck_block_tree_entry_get_block_header(get())};
     }
+
+    BlockTreeEntry GetAncestor(int32_t height) const
+    {
+        return BlockTreeEntry{btck_block_tree_entry_get_ancestor(get(), height)};
+    }
+
 };
 
 class KernelNotifications
@@ -1122,12 +1130,12 @@ public:
         return btck_chain_get_height(get());
     }
 
-    int CountEntries() const
+    int32_t CountEntries() const
     {
         return btck_chain_get_height(get()) + 1;
     }
 
-    BlockTreeEntry GetByHeight(int height) const
+    BlockTreeEntry GetByHeight(int32_t height) const
     {
         auto index{btck_chain_get_by_height(get(), height)};
         if (!index) throw std::runtime_error("No entry in the chain at the provided height");

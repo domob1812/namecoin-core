@@ -315,6 +315,16 @@ void CheckHandle(T object, T distinct_object)
     if constexpr (HasToBytes<T>) {
         check_equal(object2.ToBytes(), object3.ToBytes());
     }
+
+    // Self move-assignment must not destroy the held resource.
+    // Use a reference to avoid -Wself-move warnings.
+    original_ptr = object2.get();
+    auto& object2_ref = object2;
+    object2 = std::move(object2_ref);
+    BOOST_CHECK_EQUAL(object2.get(), original_ptr);
+    if constexpr (HasToBytes<T>) {
+        check_equal(object2.ToBytes(), object3.ToBytes());
+    }
 }
 
 template <typename RangeType>
@@ -1047,6 +1057,11 @@ BOOST_AUTO_TEST_CASE(btck_block_tree_entry_tests)
     auto prev{entry_1.GetPrevious()};
     BOOST_CHECK(prev.has_value());
     BOOST_CHECK(prev.value() == entry_0);
+
+    // Test GetAncestor
+    BOOST_CHECK(entry_2.GetAncestor(2) == entry_2);
+    BOOST_CHECK(entry_2.GetAncestor(1) == entry_1);
+    BOOST_CHECK(entry_2.GetAncestor(0) == entry_0);
 }
 
 BOOST_AUTO_TEST_CASE(btck_chainman_in_memory_tests)

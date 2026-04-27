@@ -48,6 +48,7 @@ FUZZ_TARGET(script_ops)
     (void)script.GetSigOpCount(script);
     (void)script.HasValidOps();
     (void)script.IsPayToScriptHash(false);
+    (void)script.IsPayToAnchor();
     (void)script.IsPayToWitnessScriptHash(false);
     (void)script.IsPushOnly();
     (void)script.IsUnspendable();

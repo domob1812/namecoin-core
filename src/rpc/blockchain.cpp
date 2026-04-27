@@ -1170,7 +1170,6 @@ static RPCMethod gettxoutsetinfo()
 {
     UniValue ret(UniValue::VOBJ);
 
-    const CBlockIndex* pindex{nullptr};
     const CoinStatsHashType hash_type{ParseHashType(self.Arg<std::string_view>("hash_type"))};
     bool index_requested = request.params[2].isNull() || request.params[2].get_bool();
 
@@ -1187,6 +1186,7 @@ static RPCMethod gettxoutsetinfo()
         blockman = &active_chainstate.m_blockman;
     }
 
+    const CBlockIndex* pindex{nullptr};
     if (!request.params[1].isNull()) {
         if (!g_coin_stats_index) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Querying specific block heights requires coinstatsindex");
@@ -1364,7 +1364,7 @@ static RPCMethod gettxout()
     UniValue o(UniValue::VOBJ);
     ScriptToUniv(coin->out.scriptPubKey, /*out=*/o, /*include_hex=*/true, /*include_address=*/true);
     ret.pushKV("scriptPubKey", std::move(o));
-    ret.pushKV("coinbase", static_cast<bool>(coin->fCoinBase));
+    ret.pushKV("coinbase", coin->IsCoinBase());
 
     return ret;
 },
@@ -1735,7 +1735,7 @@ static RPCMethod getchaintips()
     std::set<const CBlockIndex*> setPrevs;
 
     for (const auto& [_, block_index] : chainman.BlockIndex()) {
-        if (!active_chain.Contains(&block_index)) {
+        if (!active_chain.Contains(block_index)) {
             setOrphans.insert(&block_index);
             setPrevs.insert(block_index.pprev);
         }
@@ -1753,15 +1753,16 @@ static RPCMethod getchaintips()
     /* Construct the output array.  */
     UniValue res(UniValue::VARR);
     for (const CBlockIndex* block : setTips) {
+        CHECK_NONFATAL(block);
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("height", block->nHeight);
         obj.pushKV("hash", block->phashBlock->GetHex());
 
-        const int branchLen = block->nHeight - active_chain.FindFork(block)->nHeight;
+        const int branchLen = block->nHeight - active_chain.FindFork(*block)->nHeight;
         obj.pushKV("branchlen", branchLen);
 
         std::string status;
-        if (active_chain.Contains(block)) {
+        if (active_chain.Contains(*block)) {
             // This block is part of the currently active chain.
             status = "active";
         } else if (block->nStatus & BLOCK_FAILED_VALID) {
@@ -1970,7 +1971,7 @@ static RPCMethod getchaintxstats()
         if (!pindex) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         }
-        if (!chainman.ActiveChain().Contains(pindex)) {
+        if (!chainman.ActiveChain().Contains(*pindex)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Block is not in main chain");
         }
     }
@@ -2067,8 +2068,8 @@ static inline bool SetHasKeys(const std::set<T>& set, const Tk& key, const Args&
     return (set.contains(key)) || SetHasKeys(set, args...);
 }
 
-// outpoint (needed for the utxo index) + nHeight + fCoinBase
-static constexpr size_t PER_UTXO_OVERHEAD = sizeof(COutPoint) + sizeof(uint32_t) + sizeof(bool);
+// outpoint (needed for the utxo index) + nHeight|fCoinBase
+static constexpr size_t PER_UTXO_OVERHEAD = sizeof(COutPoint) + sizeof(uint32_t);
 
 static RPCMethod getblockstats()
 {
@@ -2908,7 +2909,7 @@ static RPCMethod getdescriptoractivity()
             if (!pindex) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
             }
-            if (!chainman.ActiveChain().Contains(pindex)) {
+            if (!chainman.ActiveChain().Contains(*pindex)) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Block is not in main chain");
             }
             blockindexes_sorted.insert(pindex);
