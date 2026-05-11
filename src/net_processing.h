@@ -58,6 +58,8 @@ static const unsigned int MAX_HEADERS_SIZE = (6 << 20); // 6 MiB
  *  This is used starting with SIZE_HEADERS_LIMIT_VERSION peers.
  */
 static const unsigned int THRESHOLD_HEADERS_SIZE = (4 << 20); // 4 MiB
+/** The compactblocks version we support. See BIP 152. */
+static constexpr uint64_t CMPCTBLOCKS_VERSION{2};
 
 struct CNodeStateStats {
     int nSyncHeight = -1;
