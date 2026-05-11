@@ -143,7 +143,7 @@ It is required that you have `python` and `zip` installed.
 
 2.  Build Namecoin Core:
 
-##### Wallet (only SQlite) and GUI Support:
+##### Wallet and GUI:
 
 This enables the GUI.
 If `sqlite` or `qt` are not installed, this will throw an error.
@@ -179,7 +179,7 @@ ctest --test-dir build  # Append "-j N" for N parallel tests.
 
 ### 3. Deploy (optional)
 
-You can also create a  `.zip` containing the `.app` bundle by running the following command:
+You can also create a `.zip` containing the `.app` bundle by running the following command:
 
 ``` bash
 cmake --build build --target deploy

@@ -13,6 +13,7 @@
 #include <consensus/consensus.h>
 #include <key.h>
 #include <merkleblock.h>
+#include <pow.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <serialize.h>
@@ -20,6 +21,7 @@
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
 #include <uint256.h>
+#include <validation.h>
 
 #include <algorithm>
 #include <array>
@@ -122,6 +124,19 @@ template <typename T>
         return std::nullopt;
     }
     return obj;
+}
+
+template <typename T>
+[[nodiscard]] inline std::optional<T> ConsumeDeserializableConstructor(FuzzedDataProvider& fuzzed_data_provider, const std::optional<size_t>& max_length = std::nullopt) noexcept
+{
+    const std::vector<uint8_t> buffer = ConsumeRandomLengthByteVector(fuzzed_data_provider, max_length);
+    SpanReader ds{buffer};
+    try {
+        T obj(deserialize, ds);
+        return obj;
+    } catch (const std::ios_base::failure&) {
+        return std::nullopt;
+    }
 }
 
 template <typename WeakEnumType, size_t size>
@@ -342,6 +357,13 @@ void ReadFromStream(FuzzedDataProvider& fuzzed_data_provider, Stream& stream) no
         } catch (const std::ios_base::failure&) {
             break;
         }
+    }
+}
+
+inline void FinalizeHeader(CBlockHeader& header, const ChainstateManager& chainman)
+{
+    while (!CheckProofOfWork(header.GetHash(), header.nBits, chainman.GetParams().GetConsensus())) {
+        ++(header.nNonce);
     }
 }
 

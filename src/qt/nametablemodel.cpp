@@ -391,7 +391,10 @@ NameTableModel::NameTableModel(const PlatformStyle *platformStyle, WalletModel *
 
     GUIUtil::ExceptionSafeConnect(&walletModel->clientModel(), &ClientModel::numBlocksChanged, this, &NameTableModel::updateExpiration);
 
-    GUIUtil::ExceptionSafeConnect(walletModel->getTransactionTableModel(), &TransactionTableModel::rowsInserted, this, &NameTableModel::processNewTransaction);
+    // NOTE: rowsInserted is a Qt private signal (QPrivateSignal), which is
+    // incompatible with ExceptionSafeConnect's generic variadic lambda. Use a
+    // plain connect() here, consistent with how WalletView does it.
+    connect(walletModel->getTransactionTableModel(), &TransactionTableModel::rowsInserted, this, &NameTableModel::processNewTransaction);
 }
 
 NameTableModel::~NameTableModel()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2020-2021 Daniel Kraft
+# Copyright (c) 2020-2026 Daniel Kraft
 # Distributed under the MIT/X11 software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -68,17 +68,17 @@ class NamePsbtTest (NameTestFramework):
     the decoded nameop entry.
     """
 
-    data = node.decodepsbt (psbt)["tx"]
+    data = node.decodepsbt (psbt)
 
     res = None
-    for out in data["vout"]:
-      if "nameOp" in out["scriptPubKey"]:
+    for out in data["outputs"]:
+      if "nameOp" in out["script"]:
         assert_equal (res, None)
-        res = out["scriptPubKey"]["nameOp"]
+        res = out["script"]["nameOp"]
 
         # Extra check:  Verify that the address is decoded correctly.
-        addr = out["scriptPubKey"]["address"]
-        assert_equal (out["scriptPubKey"]["type"], "pubkeyhash")
+        addr = out["script"]["address"]
+        assert_equal (out["script"]["type"], "pubkeyhash")
         validation = node.validateaddress (addr)
         assert_equal (validation["isvalid"], True)
 
