@@ -36,6 +36,7 @@
 #include <txmempool.h>
 #include <uint256.h>
 #include <util/check.h>
+#include <util/task_runner.h>
 #include <util/time.h>
 #include <util/translation.h>
 #include <validation.h>
@@ -52,6 +53,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -121,7 +123,6 @@ void ResetChainmanAndMempool(TestingSetup& setup)
 
     node::BlockAssembler::Options options;
     options.coinbase_output_script = P2WSH_OP_TRUE;
-    options.include_dummy_extranonce = true;
 
     g_mature_coinbase.clear();
 
@@ -135,6 +136,15 @@ void ResetChainmanAndMempool(TestingSetup& setup)
     }
 }
 
+//! Used to run tasks in a std::thread to avoid DEBUG_LOCKORDER false positives.
+class ImmediateBackgroundTaskRunner : public util::TaskRunnerInterface
+{
+public:
+    void insert(std::function<void()> func) override { std::thread(std::move(func)).join(); }
+    void flush() override {}
+    size_t size() override { return 0; }
+};
+
 } // namespace
 
 extern void MakeRandDeterministicDANGEROUS(const uint256& seed) noexcept;
@@ -144,6 +154,8 @@ void initialize_cmpctblock()
     static const auto testing_setup = MakeNoLogFileContext<TestingSetup>();
     g_setup = testing_setup.get();
     g_nBits = Params().GenesisBlock().nBits;
+    // Replace validation_signals before creating chainman and mempool so they use it.
+    testing_setup->m_node.validation_signals = std::make_unique<ValidationSignals>(std::make_unique<ImmediateBackgroundTaskRunner>());
     ResetChainmanAndMempool(*g_setup);
 }
 

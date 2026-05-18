@@ -393,7 +393,7 @@ TestChain100Setup::TestChain100Setup(
         LOCK(::cs_main);
         assert(
             m_node.chainman->ActiveChain().Tip()->GetBlockHash().ToString() ==
-            "0aa0fbd9de018e4458aee9c9e7e9dac28ce376bb723f408c3c7a0f93cd8bad5c");
+            "2cd02ae7ca869ad3d1a19a9af3b6f6fb82e52dd77a6eda458a4cc51a3bc46e27");
     }
 }
 
@@ -415,7 +415,6 @@ CBlock TestChain100Setup::CreateBlock(
 {
     BlockAssembler::Options options;
     options.coinbase_output_script = scriptPubKey;
-    options.include_dummy_extranonce = true;
     CBlock block = BlockAssembler{chainstate, nullptr, options}.CreateNewBlock()->block;
 
     Assert(block.vtx.size() == 1);
