@@ -740,9 +740,9 @@ public:
         m_assumeutxo_data = {
             {   // For use by unit tests
                 .height = 110,
-                .hash_serialized = AssumeutxoHash{uint256{"b6f3c376e66764edd996ec074254833d33d187bf4886f5812b85ba5f0db2d54d"}},
+                .hash_serialized = AssumeutxoHash{uint256{"c239644128298bce7391d4c399a9935b19cef1b2662340c21a8b74bb96223d2e"}},
                 .m_chain_tx_count = 111,
-                .blockhash = uint256{"4f29bd26ec9ef63973ee4e45bfb517cccaed7629c6cdbdd0d2f653f9d3ea4a47"},
+                .blockhash = uint256{"65f8ca0f6dcb49dc6745c4b60083920ed0597f94b8381a2200e84f2e9a0a52e4"},
             },
             {
                 // For use by fuzz target src/test/fuzz/utxo_snapshot.cpp
@@ -754,9 +754,9 @@ public:
             {
                 // For use by test/functional/feature_assumeutxo.py and test/functional/tool_bitcoin_chainstate.py
                 .height = 299,
-                .hash_serialized = AssumeutxoHash{uint256{"74251f753e3e273fe8856d4e058f6cb4264a30dcef0dff7d355eac040e32e61b"}},
+                .hash_serialized = AssumeutxoHash{uint256{"8b99f3bca80e6034a1662d81ada65d557aa1fd33f7456a31afd18bda200afe3f"}},
                 .m_chain_tx_count = 334,
-                .blockhash = uint256{"a53cb7a2bedb5860b46df1481ac107e2d53940bbbe7f3dd82301b4f467083736"},
+                .blockhash = uint256{"60edab000238823952b204caa0f565fc6468b9493ad2c9e5aa811997c505f47e"},
             },
         };
 
