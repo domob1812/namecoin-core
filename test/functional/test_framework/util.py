@@ -20,8 +20,7 @@ import shlex
 import time
 import types
 
-from . import coverage
-from .authproxy import AuthServiceProxy, JSONRPCException
+from .authproxy import JSONRPCException
 from .descriptors import descsum_create
 from collections.abc import Callable
 from typing import Optional, Union
@@ -481,32 +480,6 @@ class PortSeed:
     # Must be initialized with a unique integer for each process
     n = None
 
-
-def get_rpc_proxy(url: str, node_number: int, *, timeout: Optional[int]=None, coveragedir: Optional[str]=None) -> coverage.AuthServiceProxyWrapper:
-    """
-    Args:
-        url: URL of the RPC server to call
-        node_number: the node number (or id) that this calls to
-
-    Kwargs:
-        timeout: HTTP timeout in seconds
-        coveragedir: Directory
-
-    Returns:
-        AuthServiceProxy. convenience object for making RPC calls.
-
-    """
-    proxy_kwargs = {}
-    if timeout is not None:
-        proxy_kwargs['timeout'] = int(timeout)
-
-    proxy = AuthServiceProxy(url, **proxy_kwargs)
-
-    coverage_logfile = coverage.get_filename(coveragedir, node_number) if coveragedir else None
-
-    return coverage.AuthServiceProxyWrapper(proxy, url, coverage_logfile)
-
-
 def p2p_port(n):
     assert n <= MAX_NODES
     return PORT_MIN + n + (MAX_NODES * PortSeed.n) % (PORT_RANGE - 1 - MAX_NODES)
@@ -518,19 +491,6 @@ def rpc_port(n):
 
 def tor_port(n):
     return p2p_port(n) + PORT_RANGE * 2
-
-
-def rpc_url(datadir, i, chain, rpchost):
-    rpc_u, rpc_p = get_auth_cookie(datadir, chain)
-    host = '127.0.0.1'
-    port = rpc_port(i)
-    if rpchost:
-        parts = rpchost.split(':')
-        if len(parts) == 2:
-            host, port = parts
-        else:
-            host = rpchost
-    return "http://%s:%s@%s:%d" % (rpc_u, rpc_p, host, int(port))
 
 
 # Node functions
@@ -579,7 +539,7 @@ def write_config(config_path, *, n, chain, extra_config="", disable_autoconnect=
         # in tests.
         f.write("peertimeout=999999999\n")
         f.write("printtoconsole=0\n")
-        f.write("natpmp=0\n")
+        f.write("natpmp=0\n") # Avoid non-loopback network traffic during tests.
         f.write("shrinkdebugfile=0\n")
         # To improve SQLite wallet performance so that the tests don't timeout, use -unsafesqlitesync
         f.write("unsafesqlitesync=1\n")

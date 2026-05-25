@@ -6,6 +6,7 @@
 #include <wallet/wallet.h>
 
 #include <bitcoin-build-config.h> // IWYU pragma: keep
+
 #include <addresstype.h>
 #include <blockfilter.h>
 #include <chain.h>
@@ -26,7 +27,6 @@
 #include <kernel/types.h>
 #include <key.h>
 #include <key_io.h>
-#include <logging.h>
 #include <names/encoding.h>
 #include <node/types.h>
 #include <outputtype.h>
@@ -57,6 +57,7 @@
 #include <util/check.h>
 #include <util/fs.h>
 #include <util/fs_helpers.h>
+#include <util/log.h>
 #include <util/moneystr.h>
 #include <util/result.h>
 #include <util/string.h>

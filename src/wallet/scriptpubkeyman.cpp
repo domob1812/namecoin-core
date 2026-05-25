@@ -4,7 +4,6 @@
 
 #include <hash.h>
 #include <key_io.h>
-#include <logging.h>
 #include <node/types.h>
 #include <outputtype.h>
 #include <script/descriptor.h>
@@ -14,6 +13,7 @@
 #include <script/solver.h>
 #include <util/bip32.h>
 #include <util/check.h>
+#include <util/log.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/time.h>
