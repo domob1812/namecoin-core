@@ -6,6 +6,7 @@
 #define BITCOIN_WALLET_RPC_WALLET_H
 
 #include <span.h>
+#include <univalue.h>
 #include <wallet/walletutil.h>
 
 #include <vector>

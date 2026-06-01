@@ -75,8 +75,8 @@ class PSBTTest(BitcoinTestFramework):
         # segwit activation in Namecoin), explicitly specify the address
         # type for this test.
         self.extra_args = [
-            ["-walletrbf=1", "-addresstype=bech32", "-changetype=bech32"],
-            ["-walletrbf=0", "-addresstype=bech32", "-changetype=legacy"],
+            ["-addresstype=bech32", "-changetype=bech32"],
+            ["-addresstype=bech32", "-changetype=legacy"],
             []
         ]
         # whitelist peers to speed up tx relay / mempool sync
@@ -884,14 +884,6 @@ class PSBTTest(BitcoinTestFramework):
             assert_equal(psbt_in["sequence"], MAX_BIP125_RBF_SEQUENCE)
             assert "bip32_derivs" in psbt_in
         assert_equal(decoded_psbt["fallback_locktime"], 0)
-
-        # Same construction without optional arguments, for a node with -walletrbf=0
-        unspent1 = self.nodes[1].listunspent()[0]
-        psbtx_info = self.nodes[1].walletcreatefundedpsbt([{"txid":unspent1["txid"], "vout":unspent1["vout"]}], [{self.nodes[2].getnewaddress():unspent1["amount"]+1}], block_height, {"add_inputs": True})
-        decoded_psbt = self.nodes[1].decodepsbt(psbtx_info["psbt"])
-        for psbt_in in decoded_psbt["inputs"]:
-            assert_greater_than(psbt_in["sequence"], MAX_BIP125_RBF_SEQUENCE)
-            assert "bip32_derivs" in psbt_in
 
         # Make sure change address wallet does not have P2SH innerscript access to results in success
         # when attempting BnB coin selection

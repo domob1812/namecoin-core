@@ -12,6 +12,7 @@
 #include <crypto/hex_base.h>
 #include <key_io.h>
 #include <names/encoding.h>
+#include <prevector.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <script/descriptor.h>

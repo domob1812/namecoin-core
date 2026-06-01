@@ -2,6 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <wallet/feebumper.h>
+
+#include <coins.h>
 #include <common/system.h>
 #include <consensus/validation.h>
 #include <script/names.h>
@@ -12,7 +15,6 @@
 #include <util/rbf.h>
 #include <util/translation.h>
 #include <wallet/coincontrol.h>
-#include <wallet/feebumper.h>
 #include <wallet/fees.h>
 #include <wallet/receive.h>
 #include <wallet/spend.h>
