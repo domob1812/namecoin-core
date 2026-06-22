@@ -562,9 +562,8 @@ For IWYU pragmas, prefer adding a nearby source comment that explains why the an
 
 Profiling is a good way to get a precise idea of where time is being spent in
 code. One tool for doing profiling on Linux platforms is called
-[`perf`](https://www.brendangregg.com/perf.html), and has been integrated into
-the functional test framework. Perf can observe a running process and sample
-(at some frequency) where its execution is.
+[`perf`](https://www.brendangregg.com/perf.html). It can observe a running
+process and sample (at some frequency) where its execution is.
 
 Perf installation is contingent on which kernel version you're running; see
 [this thread](https://askubuntu.com/questions/50145/how-to-install-perf-monitoring-tool)
@@ -598,8 +597,6 @@ perf report --stdio | c++filt | less
 ```
 
 or using a graphical tool like [Hotspot](https://github.com/KDAB/hotspot).
-
-See the functional test documentation for how to invoke perf within tests.
 
 ### Valgrind
 
@@ -702,16 +699,16 @@ and its `cs_KeyStore` lock for example).
   : Performs various loading tasks that are part of init but shouldn't block the node from being started: external block import,
    reindex, reindex-chainstate, main chain activation, spawn indexes background sync threads and mempool load.
 
-- [CCheckQueue::Loop (`b-scriptch.x`)](https://doxygen.bitcoincore.org/class_c_check_queue.html#checkqueue)
+- [CCheckQueue::Loop (`b-scriptch.xx`)](https://doxygen.bitcoincore.org/class_c_check_queue.html#checkqueue)
   : Parallel script validation threads for transactions in blocks.
 
 - [ThreadHTTP (`b-http`)](https://doxygen.bitcoincore.org/httpserver_8cpp.html#http)
   : Libevent thread to listen for RPC and REST connections.
 
-- [HTTP worker threads (`b-http_pool_x`)](https://doxygen.bitcoincore.org/httpserver_8cpp.html#http_pool)
+- [HTTP worker threads (`b-http.xx`)](https://doxygen.bitcoincore.org/httpserver_8cpp.html#http_pool)
   : Threads to service RPC and REST requests.
 
-- [Indexer threads (`b-txindex`, etc)](https://doxygen.bitcoincore.org/class_base_index.html#index_sync)
+- [Indexer threads (`b-txidx`, `b-blkfltbscidx`, `b-coinstatsidx`, `b-txospenderidx`)](https://doxygen.bitcoincore.org/class_base_index.html#index_sync)
   : One thread per indexer.
 
 - [SchedulerThread (`b-scheduler`)](https://doxygen.bitcoincore.org/class_c_scheduler.html#scheduler)
