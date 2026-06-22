@@ -8,6 +8,7 @@ import configparser
 from enum import Enum
 import argparse
 from datetime import datetime, timezone
+from importlib.util import find_spec
 import logging
 import os
 from pathlib import Path
@@ -191,8 +192,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                             help="Attach a python debugger if test fails")
         parser.add_argument("--usecli", dest="usecli", default=False, action="store_true",
                             help="use namecoin-cli instead of RPC for all commands")
-        parser.add_argument("--perf", dest="perf", default=False, action="store_true",
-                            help="profile running nodes with perf for the duration of the test")
         parser.add_argument("--valgrind", dest="valgrind", default=False, action="store_true",
                             help="Run binaries under the valgrind memory error detector: Expect at least a ~10x slowdown. Does not apply to previous release binaries.")
         parser.add_argument("--randomseed", type=int,
@@ -292,15 +291,11 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
 
         should_clean_up = (
             not self.options.nocleanup and
-            self.success != TestStatus.FAILED and
-            not self.options.perf
+            self.success != TestStatus.FAILED
         )
         if should_clean_up:
             self.log.info("Cleaning up {} on exit".format(self.options.tmpdir))
             cleanup_tree_on_exit = True
-        elif self.options.perf:
-            self.log.warning("Not cleaning up dir {} due to perf data".format(self.options.tmpdir))
-            cleanup_tree_on_exit = False
         else:
             self.log.warning("Not cleaning up dir {}".format(self.options.tmpdir))
             cleanup_tree_on_exit = False
@@ -482,7 +477,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 extra_conf=extra_confs[i],
                 extra_args=args,
                 use_cli=self.options.usecli,
-                start_perf=self.options.perf,
                 v2transport=self.options.v2transport,
                 uses_wallet=self.uses_wallet,
             )
@@ -1091,6 +1085,17 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """Skip the running test if previous releases are not available."""
         if not self.has_previous_releases():
             raise SkipTest("previous releases not available or disabled")
+
+    def has_resource_module(self):
+        """Checks whether the resource module is available."""
+        return find_spec('resource') is not None
+
+    @property
+    def RLIM_INFINITY(self):
+        if not self.has_resource_module():
+            return None
+        import resource
+        return resource.RLIM_INFINITY
 
     def has_previous_releases(self):
         """Checks whether previous releases are present and enabled."""

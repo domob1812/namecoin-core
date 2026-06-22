@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2023 Daniel Kraft
+// Copyright (c) 2019-2026 Daniel Kraft
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -49,7 +49,7 @@ NameHashIndex::DB::WritePreimages (
 NameHashIndex::NameHashIndex (std::unique_ptr<interfaces::Chain> chain,
                               const size_t cache_size, const bool memory,
                               const bool wipe)
-  : BaseIndex(std::move (chain), "namehash"),
+  : BaseIndex(std::move (chain), "namehash", "nmhidx"),
     db(std::make_unique<NameHashIndex::DB> (cache_size, memory, wipe))
 {}
 
