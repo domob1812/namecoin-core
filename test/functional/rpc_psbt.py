@@ -69,8 +69,8 @@ class PSBTTest(BitcoinTestFramework):
         # segwit activation in Namecoin), explicitly specify the address
         # type for this test.
         self.extra_args = [
-            ["-walletrbf=1", "-addresstype=bech32", "-changetype=bech32"],
-            ["-addresstype=bech32", "-walletrbf=0", "-changetype=legacy"],
+            ["-walletrbf=1", "-addresstype=bech32"],
+            ["-walletrbf=0", "-addresstype=bech32", "-changetype=legacy"],
             []
         ]
         # whitelist peers to speed up tx relay / mempool sync
