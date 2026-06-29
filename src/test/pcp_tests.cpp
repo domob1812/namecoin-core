@@ -191,14 +191,14 @@ public:
               Event* occurred = nullptr) const override
     {
         // Only handles receive events.
-        if (AtEndOfScript() || requested != Sock::RECV) {
+        if (AtEndOfScript() || requested != Sock::RecvEvent) {
             m_clock += timeout;
         } else {
             std::chrono::milliseconds delay = std::min(m_time_left, timeout);
             m_clock += delay;
             m_time_left -= delay;
             if (CurOp().op == TestOp::RECV && m_time_left == 0s && occurred != nullptr) {
-                *occurred = Sock::RECV;
+                *occurred = Sock::RecvEvent;
             }
             if (CurOp().op == TestOp::NOP) {
                 // This was a pure delay operation, move to the next op.
@@ -222,7 +222,7 @@ private:
     const std::vector<TestOp> m_script;
     mutable size_t m_script_ptr = 0;
     mutable std::chrono::milliseconds m_time_left;
-    mutable SteadyClockContext m_clock{};
+    mutable FakeSteadyClock m_clock{};
     mutable bool m_connected{false};
     mutable CService m_bound;
     mutable CNetAddr m_local_ip;

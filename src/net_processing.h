@@ -52,7 +52,7 @@ static const unsigned int MAX_HEADERS_RESULTS = 2000;
  *  SIZE_HEADERS_LIMIT_VERSION peers and prevents overloading if we have
  *  very large headers (due to auxpow).
  */
-static const unsigned int MAX_HEADERS_SIZE = (6 << 20); // 6 MiB
+static const unsigned int MAX_HEADERS_MSG_SIZE = (6 << 20); // 6 MiB
 /** Size of a headers message that is the threshold for assuming that the
  *  peer has more headers (even if we have less than MAX_HEADERS_RESULTS).
  *  This is used starting with SIZE_HEADERS_LIMIT_VERSION peers.
@@ -101,7 +101,7 @@ public:
         //! a test-only option).
         bool deterministic_rng{false};
         //! Maximum size of a headers message (this is a test-only option).
-        uint32_t max_headers_size{MAX_HEADERS_SIZE};
+        uint32_t max_headers_size{MAX_HEADERS_MSG_SIZE};
         //! Number of headers sent in one getheaders message result (this is
         //! a test-only option).
         uint32_t max_headers_result{MAX_HEADERS_RESULTS};
