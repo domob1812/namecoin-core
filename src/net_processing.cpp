@@ -540,7 +540,7 @@ public:
     std::vector<CTransactionRef> AbortPrivateBroadcast(const uint256& id) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void SendPings() override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void InitiateTxBroadcastToAll(const Txid& txid, const Wtxid& wtxid) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
-    void InitiateTxBroadcastPrivate(const CTransactionRef& tx) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+    node::TransactionError InitiateTxBroadcastPrivate(const CTransactionRef& tx) override EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
     void SetBestBlock(int height, std::chrono::seconds time) override
     {
         m_best_height = height;
@@ -1664,8 +1664,9 @@ void PeerManagerImpl::ReattemptPrivateBroadcast(CScheduler& scheduler)
     size_t num_for_rebroadcast{0};
     const auto stale_txs = m_tx_for_private_broadcast.GetStale();
     if (!stale_txs.empty()) {
-        LOCK(cs_main);
         for (const auto& stale_tx : stale_txs) {
+            // Only hold lock per single submission
+            LOCK(cs_main);
             auto mempool_acceptable = m_chainman.ProcessTransaction(stale_tx, /*test_accept=*/true);
             if (mempool_acceptable.m_result_type == MempoolAcceptResult::ResultType::VALID) {
                 LogDebug(BCLog::PRIVBROADCAST,
@@ -1911,11 +1912,13 @@ std::vector<CTransactionRef> PeerManagerImpl::AbortPrivateBroadcast(const uint25
 
 void PeerManagerImpl::AddToCompactExtraTransactions(const CTransactionRef& tx)
 {
-    if (m_opts.max_extra_txs <= 0)
-        return;
-    if (!vExtraTxnForCompact.size())
-        vExtraTxnForCompact.resize(m_opts.max_extra_txs);
-    vExtraTxnForCompact[vExtraTxnForCompactIt] = std::make_pair(tx->GetWitnessHash(), tx);
+    if (m_opts.max_extra_txs == 0) return;
+    if (vExtraTxnForCompact.size() < m_opts.max_extra_txs) {
+        if (vExtraTxnForCompact.empty()) vExtraTxnForCompact.reserve(m_opts.max_extra_txs);
+        vExtraTxnForCompact.emplace_back(tx->GetWitnessHash(), tx);
+    } else {
+        vExtraTxnForCompact[vExtraTxnForCompactIt] = std::make_pair(tx->GetWitnessHash(), tx);
+    }
     vExtraTxnForCompactIt = (vExtraTxnForCompactIt + 1) % m_opts.max_extra_txs;
 }
 
@@ -2297,15 +2300,22 @@ void PeerManagerImpl::InitiateTxBroadcastToAll(const Txid& txid, const Wtxid& wt
     }
 }
 
-void PeerManagerImpl::InitiateTxBroadcastPrivate(const CTransactionRef& tx)
+node::TransactionError PeerManagerImpl::InitiateTxBroadcastPrivate(const CTransactionRef& tx)
 {
     const auto txstr{strprintf("txid=%s, wtxid=%s", tx->GetHash().ToString(), tx->GetWitnessHash().ToString())};
-    if (m_tx_for_private_broadcast.Add(tx)) {
+    switch (m_tx_for_private_broadcast.Add(tx)) {
+    case PrivateBroadcast::AddResult::Added:
         LogDebug(BCLog::PRIVBROADCAST, "Requesting %d new connections due to %s", NUM_PRIVATE_BROADCAST_PER_TX, txstr);
         m_connman.m_private_broadcast.NumToOpenAdd(NUM_PRIVATE_BROADCAST_PER_TX);
-    } else {
+        return node::TransactionError::OK;
+    case PrivateBroadcast::AddResult::AlreadyPresent:
         LogDebug(BCLog::PRIVBROADCAST, "Ignoring unnecessary request to schedule an already scheduled transaction: %s", txstr);
-    }
+        return node::TransactionError::OK;
+    case PrivateBroadcast::AddResult::QueueFull:
+        LogDebug(BCLog::PRIVBROADCAST, "Rejecting private broadcast, queue full (cap=%u): %s", PrivateBroadcast::MAX_TRANSACTIONS, txstr);
+        return node::TransactionError::PRIVATE_BROADCAST_FULL;
+    } // no default case, so the compiler can warn about missing cases
+    assert(false);
 }
 
 void PeerManagerImpl::RelayAddress(NodeId originator,
@@ -2643,7 +2653,7 @@ void PeerManagerImpl::SendBlockTransactions(CNode& pfrom, Peer& peer, const CBlo
     if (util::log::ShouldDebugLog(BCLog::CMPCTBLOCK)) {
         uint32_t tx_requested_size{0};
         for (const auto& tx : resp.txn) tx_requested_size += tx->ComputeTotalSize();
-        LogDebug(BCLog::CMPCTBLOCK, "Peer %d sent us a GETBLOCKTXN for block %s, sending a BLOCKTXN with %u txns. (%u bytes)\n", pfrom.GetId(), block.GetHash().ToString(), resp.txn.size(), tx_requested_size);
+        LogDebug(BCLog::CMPCTBLOCK, "%s sent us a GETBLOCKTXN for block %s, sending a BLOCKTXN with %u txns. (%u bytes)", pfrom.LogPeer(), block.GetHash().ToString(), resp.txn.size(), tx_requested_size);
     }
     MakeAndPushMessage(pfrom, NetMsgType::BLOCKTXN, resp);
 }
@@ -3815,7 +3825,7 @@ void PeerManagerImpl::ProcessMessage(Peer& peer, CNode& pfrom, const std::string
 
         // Attempt to initialize address relay for outbound peers and use result
         // to decide whether to send GETADDR, so that we don't send it to
-        // inbound or outbound block-relay-only peers.
+        // inbound, feelers, or outbound block-relay-only peers.
         bool send_getaddr{false};
         if (!pfrom.IsInboundConn()) {
             send_getaddr = SetupAddressRelay(pfrom, peer);
@@ -4611,8 +4621,20 @@ void PeerManagerImpl::ProcessMessage(Peer& peer, CNode& pfrom, const std::string
     {
         // Ignore cmpctblock received while importing
         if (m_chainman.m_blockman.LoadingBlocks()) {
-            LogDebug(BCLog::NET, "Unexpected cmpctblock message received from peer %d\n", pfrom.GetId());
+            LogDebug(BCLog::CMPCTBLOCK, "%s sent us a compact block even though we are still loading blocks!", pfrom.LogPeer());
             return;
+        } else if (m_opts.ignore_incoming_txs) {
+            LogDebug(BCLog::CMPCTBLOCK, "%s sent us a compact block even though we are blocksonly!", pfrom.LogPeer());
+            return;
+        }
+
+        {
+            LOCK(cs_main);
+            const CNodeState *nodestate = State(pfrom.GetId());
+            if (!nodestate->m_provides_cmpctblocks) {
+                LogDebug(BCLog::CMPCTBLOCK, "%s sent us a compact block despite never having sent us a SENDCMPCT!", pfrom.LogPeer());
+                return;
+            }
         }
 
         CBlockHeaderAndShortTxIDs cmpctblock;
@@ -4696,6 +4718,11 @@ void PeerManagerImpl::ProcessMessage(Peer& peer, CNode& pfrom, const std::string
                 break;
             }
             range_flight.first++;
+        }
+
+        if (!requested_block_from_this_peer && !pfrom.m_bip152_highbandwidth_to) {
+            LogDebug(BCLog::CMPCTBLOCK, "%s, not marked as high-bandwidth, sent us an unsolicited compact block!", pfrom.LogPeer());
+            return;
         }
 
         if (pindex->nChainWork <= m_chainman.ActiveChain().Tip()->nChainWork || // We know something better
@@ -5760,6 +5787,11 @@ bool PeerManagerImpl::SetupAddressRelay(const CNode& node, Peer& peer)
     // connections to prevent providing adversaries with the additional
     // information of addr traffic to infer the link.
     if (node.IsBlockOnlyConn()) return false;
+
+    // We don't participate in addr relay with feeler connections because
+    // they are disconnected shortly after the handshake completes,
+    // before the node will receive the addr response.
+    if (node.IsFeelerConn()) return false;
 
     if (!peer.m_addr_relay_enabled.exchange(true)) {
         // During version message processing (non-block-relay-only outbound peers)
