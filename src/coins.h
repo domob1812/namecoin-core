@@ -361,9 +361,6 @@ public:
     //! The passed cursor is used to iterate through the coins.
     virtual void BatchWrite(CoinsViewCacheCursor& cursor, const uint256& block_hash, const CNameCache& names) = 0;
 
-    //! Get a cursor to iterate over the whole state. Implementations may return nullptr.
-    virtual std::unique_ptr<CCoinsViewCursor> Cursor() const = 0;
-
     // Validate the name database.
     virtual bool ValidateNameDB(const Chainstate& chainState, const std::function<void()>& interruption_point) const = 0;
 
@@ -396,7 +393,6 @@ public:
     {
         for (auto it{cursor.Begin()}; it != cursor.End(); it = cursor.NextAndMaybeErase(*it)) { }
     }
-    std::unique_ptr<CCoinsViewCursor> Cursor() const override { return {}; }
     bool ValidateNameDB(const Chainstate& chainState, const std::function<void()>& interruption_point) const override { return true; }
     size_t EstimateSize() const override { return 0; }
 };
@@ -421,8 +417,7 @@ public:
     bool GetNameHistory(const valtype& name, CNameHistory& data) const override { return base->GetNameHistory(name, data); }
     bool GetNamesForHeight(unsigned nHeight, std::set<valtype>& names) const override { return base->GetNamesForHeight(nHeight, names); }
     CNameIterator* IterateNames() const override { return base->IterateNames(); }
-    void BatchWrite(CoinsViewCacheCursor& cursor, const uint256& block_hash, const CNameCache& names) override { return base->BatchWrite(cursor, block_hash, names); }
-    std::unique_ptr<CCoinsViewCursor> Cursor() const override { return base->Cursor(); }
+    void BatchWrite(CoinsViewCacheCursor& cursor, const uint256& block_hash, const CNameCache& names) override { base->BatchWrite(cursor, block_hash, names); }
     bool ValidateNameDB(const Chainstate& chainState, const std::function<void()>& interruption_point) const override { return base->ValidateNameDB(chainState, interruption_point); }
     size_t EstimateSize() const override { return base->EstimateSize(); }
 };
@@ -481,10 +476,7 @@ public:
     bool GetNameHistory(const valtype& name, CNameHistory& data) const override;
     bool GetNamesForHeight(unsigned nHeight, std::set<valtype>& names) const override;
     CNameIterator* IterateNames() const override;
-    void BatchWrite(CoinsViewCacheCursor& cursor, const uint256& hashBlock, const CNameCache& names) override;
-    std::unique_ptr<CCoinsViewCursor> Cursor() const override {
-        throw std::logic_error("CCoinsViewCache cursor iteration not supported.");
-    }
+    void BatchWrite(CoinsViewCacheCursor& cursor, const uint256& block_hash, const CNameCache& names) override;
 
     /* Changes to the name database.  */
     void SetName(const valtype &name, const CNameData &data, bool undo);
@@ -522,7 +514,7 @@ public:
      * NOT FOR GENERAL USE. Used only when loading coins from a UTXO snapshot.
      * @sa ChainstateManager::PopulateAndValidateSnapshot()
      */
-    void EmplaceCoinInternalDANGER(COutPoint&& outpoint, Coin&& coin);
+    void EmplaceCoinInternalDANGER(const COutPoint& outpoint, Coin&& coin);
 
     /**
      * Spend a coin. Pass moveto in order to get the deleted data.

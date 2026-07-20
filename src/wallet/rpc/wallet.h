@@ -26,7 +26,11 @@ std::span<const CRPCCommand> GetWalletRPCCommands();
    rpcnames.cpp in Namecoin.  */
 UniValue SendMoney(CWallet& wallet, const CCoinControl& coin_control,
                    const CTxIn* withInput,
-                   std::vector<CRecipient>& recipients, mapValue_t map_value, bool verbose);
+                   std::vector<CRecipient>& recipients,
+                   std::optional<std::string> comment,
+                   std::optional<std::string> comment_to,
+                   bool verbose);
+void SetFeeEstimateMode(const CWallet& wallet, CCoinControl& cc, const UniValue& conf_target, const UniValue& estimate_mode, const UniValue& fee_rate, bool override_min_fee);
 
 } // namespace wallet
 

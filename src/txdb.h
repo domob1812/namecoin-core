@@ -56,7 +56,8 @@ public:
     bool GetNamesForHeight(unsigned nHeight, std::set<valtype>& data) const override;
     CNameIterator* IterateNames() const override;
     void BatchWrite(CoinsViewCacheCursor& cursor, const uint256& block_hash, const CNameCache& names) override;
-    std::unique_ptr<CCoinsViewCursor> Cursor() const override;
+    //! Get a cursor to iterate over the whole state.
+    std::unique_ptr<CCoinsViewCursor> Cursor() const;
     bool ValidateNameDB(const Chainstate& chainState, const std::function<void()>& interruption_point) const override;
 
     //! Whether an unsupported database format is used.

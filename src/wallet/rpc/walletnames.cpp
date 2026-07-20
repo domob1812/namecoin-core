@@ -175,7 +175,7 @@ SendNameOutput (const JSONRPCRequest& request,
       }
 
   CCoinControl coinControl;
-  return SendMoney (wallet, coinControl, nameInput, vecSend, {}, false);
+  return SendMoney (wallet, coinControl, nameInput, vecSend, {}, {}, false);
 }
 
 } // anonymous namespace
@@ -1059,31 +1059,43 @@ sendtoname ()
      keep it in sync.  */
 
   // Wallet comments
-  mapValue_t mapValue;
-  if (request.params.size() > 2 && !request.params[2].isNull()
-        && !request.params[2].get_str().empty())
-      mapValue["comment"] = request.params[2].get_str();
-  if (request.params.size() > 3 && !request.params[3].isNull()
-        && !request.params[3].get_str().empty())
-      mapValue["to"] = request.params[3].get_str();
-
-  bool fSubtractFeeFromAmount = false;
-  if (!request.params[4].isNull())
-      fSubtractFeeFromAmount = request.params[4].get_bool();
+  std::optional<std::string> comment;
+  std::optional<std::string> comment_to;
+  if (!request.params[2].isNull() && !request.params[2].get_str().empty())
+      comment = request.params[2].get_str();
+  if (!request.params[3].isNull() && !request.params[3].get_str().empty())
+      comment_to = request.params[3].get_str();
 
   CCoinControl coin_control;
   if (!request.params[5].isNull()) {
       coin_control.m_signal_bip125_rbf = request.params[5].get_bool();
   }
 
+  coin_control.m_avoid_address_reuse = GetAvoidReuseFlag(*pwallet, request.params[8]);
+  // We also enable partial spend avoidance if reuse avoidance is set.
+  coin_control.m_avoid_partial_spends |= coin_control.m_avoid_address_reuse;
+
+  SetFeeEstimateMode(*pwallet, coin_control, /*conf_target=*/request.params[6], /*estimate_mode=*/request.params[7], /*fee_rate=*/request.params[9], /*override_min_fee=*/false);
+
   EnsureWalletIsUnlocked(*pwallet);
+
+  UniValue address_amounts(UniValue::VOBJ);
+  const std::string address = request.params[0].get_str();
+  address_amounts.pushKV(address, request.params[1]);
+
+  std::set<int> sffo_set;
+  if (!request.params[4].isNull() && request.params[4].get_bool()) {
+      sffo_set.insert(0);
+  }
 
   std::vector<CRecipient> recipients;
   const CNoDestination dest(data.getAddress ());
   const CAmount amount = AmountFromValue (request.params[1]);
-  recipients.push_back ({dest, amount, fSubtractFeeFromAmount});
+  recipients.push_back ({dest, amount, sffo_set.contains(0)});
 
-  return SendMoney(*pwallet, coin_control, nullptr, recipients, mapValue, false);
+  const bool verbose{request.params[10].isNull() ? false : request.params[10].get_bool()};
+
+  return SendMoney(*pwallet, coin_control, nullptr, recipients, comment, comment_to, verbose);
 }
   };
 }

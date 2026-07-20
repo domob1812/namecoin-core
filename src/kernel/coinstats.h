@@ -13,7 +13,7 @@
 #include <functional>
 #include <optional>
 
-class CCoinsView;
+class CCoinsViewDB;
 class Coin;
 class COutPoint;
 class CScript;
@@ -86,7 +86,7 @@ void AddCoinValueToTotals (const Coin& coin, int sign,
                            std::optional<CAmount>& totalCoins,
                            std::optional<CAmount>& totalNames);
 
-std::optional<CCoinsStats> ComputeUTXOStats(CoinStatsHashType hash_type, CCoinsView* view, node::BlockManager& blockman, const std::function<void()>& interruption_point = {});
+std::optional<CCoinsStats> ComputeUTXOStats(CoinStatsHashType hash_type, const CCoinsViewDB& view, node::BlockManager& blockman, const std::function<void()>& interruption_point = {});
 } // namespace kernel
 
 #endif // BITCOIN_KERNEL_COINSTATS_H

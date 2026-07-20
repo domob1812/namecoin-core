@@ -47,11 +47,9 @@ using interfaces::WalletAddress;
 using interfaces::WalletBalances;
 using interfaces::WalletLoader;
 using interfaces::WalletMigrationResult;
-using interfaces::WalletOrderForm;
 using interfaces::WalletTx;
 using interfaces::WalletTxOut;
 using interfaces::WalletTxStatus;
-using interfaces::WalletValueMap;
 
 namespace wallet {
 // All members of the classes in this namespace are intentionally public, as the
@@ -84,7 +82,10 @@ WalletTx MakeWalletTx(CWallet& wallet, const CWalletTx& wtx)
     result.name_credit = TxGetNameCredit(wallet, wtx);
     result.name_debit = TxGetNameDebit(wallet, wtx);
     result.time = wtx.GetTxTime();
-    result.value_map = wtx.mapValue;
+    result.from = wtx.m_from;
+    result.message = wtx.m_message;
+    result.comment = wtx.m_comment;
+    result.comment_to = wtx.m_comment_to;
     result.is_coinbase = wtx.IsCoinBase();
     return result;
 }
@@ -270,12 +271,10 @@ public:
         LOCK(m_wallet->cs_wallet);
         return CreateTransaction(*m_wallet, recipients, nullptr, change_pos, coin_control, sign);
     }
-    void commitTransaction(CTransactionRef tx,
-        WalletValueMap value_map,
-        WalletOrderForm order_form) override
+    void commitTransaction(CTransactionRef tx, const std::vector<std::string>& messages) override
     {
         LOCK(m_wallet->cs_wallet);
-        m_wallet->CommitTransaction(std::move(tx), std::move(value_map), std::move(order_form));
+        m_wallet->CommitTransaction(std::move(tx), /*replaces_txid=*/std::nullopt, /*comment=*/std::nullopt, /*comment_to=*/std::nullopt, messages);
     }
     bool transactionCanBeAbandoned(const Txid& txid) override { return m_wallet->TransactionCanBeAbandoned(txid); }
     bool abandonTransaction(const Txid& txid) override
@@ -354,7 +353,8 @@ public:
     }
     WalletTx getWalletTxDetails(const Txid& txid,
         WalletTxStatus& tx_status,
-        WalletOrderForm& order_form,
+        std::vector<std::string>& messages,
+        std::vector<std::string>& payment_requests,
         bool& in_mempool,
         int& num_blocks) override
     {
@@ -363,7 +363,8 @@ public:
         if (mi != m_wallet->mapWallet.end()) {
             num_blocks = m_wallet->GetLastBlockHeight();
             in_mempool = mi->second.InMempool();
-            order_form = mi->second.vOrderForm;
+            messages = mi->second.m_messages;
+            payment_requests = mi->second.m_payment_requests;
             tx_status = MakeWalletTxStatus(*m_wallet, mi->second);
             return MakeWalletTx(*m_wallet, mi->second);
         }
