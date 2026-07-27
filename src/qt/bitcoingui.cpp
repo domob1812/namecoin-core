@@ -1771,3 +1771,5 @@ void UnitDisplayStatusBarControl::onMenuSelection(QAction* action)
         optionsModel->setDisplayUnit(action->data());
     }
 }
+
+#include <moc_bitcoingui.cpp>

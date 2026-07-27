@@ -43,32 +43,21 @@ function(add_maintenance_targets)
 endfunction()
 
 function(add_windows_deploy_target)
+  configure_file(${PROJECT_SOURCE_DIR}/cmake/script/GenerateWindowsInstaller.cmake.in ${PROJECT_BINARY_DIR}/GenerateWindowsInstaller.cmake USE_SOURCE_PERMISSIONS @ONLY)
   if(MINGW AND TARGET namecoin AND TARGET namecoin-qt AND TARGET namecoind AND TARGET namecoin-cli AND TARGET namecoin-tx AND TARGET namecoin-wallet AND TARGET namecoin-util AND TARGET test_namecoin)
-    find_program(MAKENSIS_EXECUTABLE makensis)
-    if(NOT MAKENSIS_EXECUTABLE)
-      add_custom_target(deploy
-        COMMAND ${CMAKE_COMMAND} -E echo "Error: NSIS not found"
-      )
-      return()
-    endif()
-
-    # TODO: Consider replacing this code with the CPack NSIS Generator.
-    #       See https://cmake.org/cmake/help/latest/cpack_gen/nsis.html
-    include(GenerateSetupNsi)
-    generate_setup_nsi()
     add_custom_command(
-      OUTPUT ${PROJECT_BINARY_DIR}/bitcoin-win64-setup.exe
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/release
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:namecoin>
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-qt> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:namecoin-qt>
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoind> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:namecoind>
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-cli> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:namecoin-cli>
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-tx> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:namecoin-tx>
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-wallet> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:namecoin-wallet>
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-util> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:namecoin-util>
-      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:test_namecoin> -o ${PROJECT_BINARY_DIR}/release/$<TARGET_FILE_NAME:test_namecoin>
-      COMMAND ${MAKENSIS_EXECUTABLE} -V2 ${PROJECT_BINARY_DIR}/bitcoin-win64-setup.nsi
-      VERBATIM
+      OUTPUT ${PROJECT_BINARY_DIR}/namecoin-win64-setup.exe
+      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+      COMMAND ${CMAKE_COMMAND} -E make_directory release
+      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin> -o release/$<TARGET_FILE_NAME:namecoin>
+      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-qt> -o release/$<TARGET_FILE_NAME:namecoin-qt>
+      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoind> -o release/$<TARGET_FILE_NAME:namecoind>
+      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-cli> -o release/$<TARGET_FILE_NAME:namecoin-cli>
+      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-tx> -o release/$<TARGET_FILE_NAME:namecoin-tx>
+      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-wallet> -o release/$<TARGET_FILE_NAME:namecoin-wallet>
+      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:namecoin-util> -o release/$<TARGET_FILE_NAME:namecoin-util>
+      COMMAND ${CMAKE_STRIP} $<TARGET_FILE:test_namecoin> -o release/$<TARGET_FILE_NAME:test_namecoin>
+      COMMAND ${CMAKE_COMMAND} -D BIN_DIR=release -D LIBEXEC_DIR=release -P GenerateWindowsInstaller.cmake
     )
     add_custom_target(deploy DEPENDS ${PROJECT_BINARY_DIR}/bitcoin-win64-setup.exe)
   endif()

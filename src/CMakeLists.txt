@@ -399,6 +399,7 @@ if(BUILD_UTIL)
     core_interface
     bitcoin_common
     bitcoin_util
+    univalue
   )
   install_binary_component(namecoin-util HAS_MANPAGE)
 endif()

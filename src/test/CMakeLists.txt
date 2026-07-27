@@ -154,6 +154,7 @@ target_json_data_sources(test_namecoin
   data/key_io_valid.json
   data/script_tests.json
   data/sighash.json
+  data/siphash.json
   data/tx_invalid.json
   data/tx_valid.json
 )
