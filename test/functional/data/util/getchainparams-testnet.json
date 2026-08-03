@@ -7,7 +7,7 @@
     "limit": "0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
     "target_spacing": 600,
     "difficulty_retarget_interval": 2016,
-    "mindiff_blocks": "bip94"
+    "mindiff_blocks": "yes"
   },
   "net": {
     "default_port": 18334,
