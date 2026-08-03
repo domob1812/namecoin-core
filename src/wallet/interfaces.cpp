@@ -23,6 +23,7 @@
 #include <util/ui_change_type.h>
 #include <wallet/coincontrol.h>
 #include <wallet/context.h>
+#include <wallet/export.h>
 #include <wallet/feebumper.h>
 #include <wallet/fees.h>
 #include <wallet/load.h>
@@ -524,6 +525,12 @@ public:
     }
     CWallet* wallet() override { return m_wallet.get(); }
 
+    util::Result<std::string> exportWatchOnlyWallet(const fs::path& destination) override {
+        LOCK(m_wallet->cs_wallet);
+        m_wallet->TopUpKeyPool();
+        return ExportWatchOnlyWallet(*m_wallet, destination, m_context);
+    }
+
     WalletContext& m_context;
     std::shared_ptr<CWallet> m_wallet;
 };
@@ -606,9 +613,9 @@ public:
         }
         return wallet;
     }
-    util::Result<WalletMigrationResult> migrateWallet(const std::string& name, const SecureString& passphrase) override
+    util::Result<WalletMigrationResult> migrateWallet(const std::string& name, const SecureString& passphrase, bool load_wallet) override
     {
-        auto res = wallet::MigrateLegacyToDescriptor(name, passphrase, m_context);
+        auto res = wallet::MigrateLegacyToDescriptor(name, passphrase, m_context, load_wallet);
         if (!res) return util::Error{util::ErrorString(res)};
         WalletMigrationResult out{
             .wallet = MakeWallet(m_context, res->wallet),
