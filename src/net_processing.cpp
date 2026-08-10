@@ -57,6 +57,7 @@
 #include <txmempool.h>
 #include <uint256.h>
 #include <util/check.h>
+#include <util/hasher.h>
 #include <util/strencodings.h>
 #include <util/time.h>
 #include <util/tokenbucket.h>
@@ -85,6 +86,7 @@
 #include <set>
 #include <span>
 #include <typeinfo>
+#include <unordered_set>
 #include <utility>
 
 using kernel::ChainstateRole;
@@ -804,7 +806,7 @@ private:
         m_connman.PushMessage(&node, NetMsg::Make(std::move(msg_type), std::forward<Args>(args)...));
     }
     template <typename... Args>
-    void MakeAndPushFeature(CNode& node, std::string_view feature_id, Args&&... args) const
+    [[maybe_unused]] void MakeAndPushFeature(CNode& node, std::string_view feature_id, Args&&... args) const
     {
         if (!Assume(feature_id.size() >= 4 && feature_id.size() <= MAX_FEATUREID_LENGTH)) return;
         std::vector<unsigned char> feature_data;
@@ -846,6 +848,8 @@ private:
 
     FastRandomContext m_rng GUARDED_BY(NetEventsInterface::g_msgproc_mutex);
 
+    /** Copied into short-lived tx INV deduplication sets to avoid generating salts per message. */
+    const SaltedUint256Hasher m_txhash_hasher;
     FeeFilterRounder m_fee_filter_rounder GUARDED_BY(NetEventsInterface::g_msgproc_mutex);
 
     const CChainParams& m_chainparams;
@@ -2559,6 +2563,14 @@ void PeerManagerImpl::RelayAddress(NodeId originator,
 
 void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& inv)
 {
+    // First perform the stateless checks:
+    // A filtered-block can only ever be requested if we offer NODE_BLOOM
+    if (inv.IsMsgFilteredBlk() && !(peer.m_our_services & NODE_BLOOM)) {
+        LogDebug(BCLog::NET, "filtered block request received when NODE_BLOOM service disabled, %s", pfrom.DisconnectMsg());
+        pfrom.fDisconnect = true;
+        return;
+    }
+
     std::shared_ptr<const CBlock> a_recent_block;
     std::shared_ptr<const CBlockHeaderAndShortTxIDs> a_recent_compact_block;
     {
@@ -4360,6 +4372,8 @@ void PeerManagerImpl::ProcessMessage(Peer& peer, CNode& pfrom, const std::string
         }
 
         const bool reject_tx_invs{RejectIncomingTxs(pfrom)};
+        std::unordered_set<uint256, SaltedUint256Hasher> seen_txids{0, m_txhash_hasher};
+        std::unordered_set<uint256, SaltedUint256Hasher> seen_wtxids{0, m_txhash_hasher};
 
         LOCK2(cs_main, m_tx_download_mutex);
 
@@ -4398,6 +4412,9 @@ void PeerManagerImpl::ProcessMessage(Peer& peer, CNode& pfrom, const std::string
                     pfrom.fDisconnect = true;
                     return;
                 }
+                // MSG_WITNESS_TX is treated as a txid, despite only being specified for getdata.
+                auto& seen_hashes{inv.IsMsgWtx() ? seen_wtxids : seen_txids};
+                if (!seen_hashes.insert(inv.hash).second) continue;
                 const GenTxid gtxid = ToGenTxid(inv);
                 AddKnownTx(peer, inv.hash);
 
@@ -4561,6 +4578,14 @@ void PeerManagerImpl::ProcessMessage(Peer& peer, CNode& pfrom, const std::string
     if (msg_type == NetMsgType::GETBLOCKTXN) {
         BlockTransactionsRequest req;
         vRecv >> req;
+
+        // No legitimate reason to send indexes empty
+        if (req.indexes.empty()) {
+            LogDebug(BCLog::NET, "getblocktxn received with no transaction indexes, %s", pfrom.DisconnectMsg());
+            pfrom.fDisconnect = true;
+            return;
+        }
+
         // Verify differential encoding invariant: indexes must be strictly increasing
         // DifferenceFormatter should guarantee this property during deserialization
         for (size_t i = 1; i < req.indexes.size(); ++i) {
