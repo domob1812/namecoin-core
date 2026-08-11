@@ -70,7 +70,7 @@ static CAmount GetReceived(const CWallet& wallet, const UniValue& params, bool b
             continue;
         }
 
-        for (const CTxOut& txout : wtx.tx->vout) {
+        for (const CTxOut& txout : wtx.GetTx()->vout) {
             if (output_scripts.contains(txout.scriptPubKey)) {
                 amount += txout.nValue;
             }
@@ -314,7 +314,7 @@ RPCMethod lockunspent()
 
         const CWalletTx& trans = it->second;
 
-        if (outpt.n >= trans.tx->vout.size()) {
+        if (outpt.n >= trans.GetTx()->vout.size()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout index out of bounds");
         }
 

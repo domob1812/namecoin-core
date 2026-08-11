@@ -12,8 +12,14 @@
 #include <names/main.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
+#include <script/script.h>
+#include <tinyformat.h>
 #include <util/check.h>
 #include <util/moneystr.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <string>
 
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
 {

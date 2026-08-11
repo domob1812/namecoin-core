@@ -238,14 +238,14 @@ name_list ()
   for (const auto& item : pwallet->mapWallet)
     {
       const CWalletTx& tx = item.second;
-      if (!tx.tx->IsNamecoin ())
+      if (!tx.GetTx ()->IsNamecoin ())
         continue;
 
       CNameScript nameOp;
       int nOut = -1;
-      for (unsigned i = 0; i < tx.tx->vout.size (); ++i)
+      for (unsigned i = 0; i < tx.GetTx ()->vout.size (); ++i)
         {
-          const CNameScript cur(tx.tx->vout[i].scriptPubKey);
+          const CNameScript cur(tx.GetTx ()->vout[i].scriptPubKey);
           if (cur.isNameOp ())
             {
               if (nOut != -1)
@@ -621,13 +621,13 @@ name_firstupdate ()
       for (const auto& item : pwallet->mapWallet)
         {
           const CWalletTx& tx = item.second;
-          if (!tx.tx->IsNamecoin ())
+          if (!tx.GetTx ()->IsNamecoin ())
             continue;
 
           CScript output;
           CNameScript nameOp;
           bool found = false;
-          for (CTxOut curOutput : tx.tx->vout)
+          for (CTxOut curOutput : tx.GetTx ()->vout)
             {
               CScript curScript = curOutput.scriptPubKey;
               const CNameScript cur(curScript);

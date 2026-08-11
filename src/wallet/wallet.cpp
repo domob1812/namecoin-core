@@ -695,7 +695,7 @@ std::set<Txid> CWallet::GetConflicts(const Txid& txid) const
 
     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range;
 
-    for (const CTxIn& txin : wtx.tx->vin)
+    for (const CTxIn& txin : wtx.GetTx()->vin)
     {
         if (mapTxSpends.count(txin.prevout) <= 1)
             continue;  // No conflict if zero or one spends
@@ -827,7 +827,7 @@ void CWallet::AddToSpends(const CWalletTx& wtx)
     if (wtx.IsCoinBase()) // Coinbases don't spend anything!
         return;
 
-    for (const CTxIn& txin : wtx.tx->vin)
+    for (const CTxIn& txin : wtx.GetTx()->vin)
         AddToSpends(txin.prevout, wtx.GetHash());
 }
 
@@ -1023,7 +1023,7 @@ void CWallet::SetSpentKeyState(WalletBatch& batch, const Txid& hash, unsigned in
     if (!srctx) return;
 
     CTxDestination dst;
-    if (ExtractDestination(srctx->tx->vout[n].scriptPubKey, dst)) {
+    if (ExtractDestination(srctx->GetTx()->vout[n].scriptPubKey, dst)) {
         if (IsMine(dst)) {
             if (used != IsAddressPreviouslySpent(dst)) {
                 if (used) {
@@ -1086,22 +1086,7 @@ CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const TxState& state, const 
 
     if (!fInsertedNew)
     {
-        if (state.index() != wtx.m_state.index()) {
-            wtx.m_state = state;
-            fUpdated = true;
-        } else {
-            assert(TxStateSerializedIndex(wtx.m_state) == TxStateSerializedIndex(state));
-            assert(TxStateSerializedBlockHash(wtx.m_state) == TxStateSerializedBlockHash(state));
-        }
-        // If we have a witness-stripped version of this transaction, and we
-        // see a new version with a witness, then we must be upgrading a pre-segwit
-        // wallet.  Store the new version of the transaction with the witness,
-        // as the stripped-version must be invalid.
-        // TODO: Store all versions of the transaction, instead of just one.
-        if (tx->HasWitness() && !wtx.tx->HasWitness()) {
-            wtx.SetTx(tx);
-            fUpdated = true;
-        }
+        fUpdated |= wtx.Update(tx, state);
     }
 
     // Mark inactive coinbase transactions and their descendants as abandoned
@@ -1117,8 +1102,8 @@ CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const TxState& state, const 
             // Break caches since we have changed the state
             desc_tx->MarkDirty();
             batch.WriteTx(*desc_tx);
-            MarkInputsDirty(desc_tx->tx);
-            for (unsigned int i = 0; i < desc_tx->tx->vout.size(); ++i) {
+            MarkInputsDirty(desc_tx->GetTx());
+            for (unsigned int i = 0; i < desc_tx->GetTx()->vout.size(); ++i) {
                 COutPoint outpoint(desc_tx->GetHash(), i);
                 std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(outpoint);
                 for (TxSpends::const_iterator it = range.first; it != range.second; ++it) {
@@ -1183,11 +1168,11 @@ CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const TxState& state, const 
     return &wtx;
 }
 
-bool CWallet::LoadToWallet(const Txid& hash, const UpdateWalletTxFn& fill_wtx)
+bool CWallet::LoadToWallet(CWalletTx&& wtx_in)
 {
-    const auto& ins = mapWallet.emplace(std::piecewise_construct, std::forward_as_tuple(hash), std::forward_as_tuple(nullptr, TxStateInactive{}));
+    const auto& ins = mapWallet.emplace(wtx_in.GetHash(), std::move(wtx_in));
     CWalletTx& wtx = ins.first->second;
-    if (!fill_wtx(wtx, ins.second)) {
+    if (!ins.second) {
         return false;
     }
     // If wallet doesn't have a chain (e.g when using bitcoin-wallet tool),
@@ -1195,11 +1180,9 @@ bool CWallet::LoadToWallet(const Txid& hash, const UpdateWalletTxFn& fill_wtx)
     if (HaveChain()) {
       wtx.updateState(chain());
     }
-    if (/* insertion took place */ ins.second) {
-        wtx.m_it_wtxOrdered = wtxOrdered.insert(std::make_pair(wtx.nOrderPos, &wtx));
-    }
+    wtx.m_it_wtxOrdered = wtxOrdered.insert(std::make_pair(wtx.nOrderPos, &wtx));
     AddToSpends(wtx);
-    for (const CTxIn& txin : wtx.tx->vin) {
+    for (const CTxIn& txin : wtx.GetTx()->vin) {
         auto it = mapWallet.find(txin.prevout.hash);
         if (it != mapWallet.end()) {
             CWalletTx& prevtx = it->second;
@@ -1294,8 +1277,8 @@ void CWallet::UpdateTrucSiblingConflicts(const CWalletTx& parent_wtx, const Txid
 {
     // Find all other txs in our wallet that spend utxos from this parent
     // so that we can mark them as mempool-conflicted by this new tx.
-    for (long unsigned int i = 0; i < parent_wtx.tx->vout.size(); i++) {
-        for (auto range = mapTxSpends.equal_range(COutPoint(parent_wtx.tx->GetHash(), i)); range.first != range.second; range.first++) {
+    for (long unsigned int i = 0; i < parent_wtx.GetTx()->vout.size(); i++) {
+        for (auto range = mapTxSpends.equal_range(COutPoint(parent_wtx.GetTx()->GetHash(), i)); range.first != range.second; range.first++) {
             const Txid& sibling_txid = range.first->second;
             // Skip the child_tx itself
             if (sibling_txid == child_txid) continue;
@@ -1409,7 +1392,7 @@ void CWallet::RecursiveUpdateTxState(WalletBatch* batch, const Txid& tx_hash, co
             wtx.MarkDirty();
             if (batch) batch->WriteTx(wtx);
             // Iterate over all its outputs, and update those tx states as well (if applicable)
-            for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
+            for (unsigned int i = 0; i < wtx.GetTx()->vout.size(); ++i) {
                 std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range = mapTxSpends.equal_range(COutPoint(now, i));
                 for (TxSpends::const_iterator iter = range.first; iter != range.second; ++iter) {
                     if (!done.contains(iter->second)) {
@@ -1424,7 +1407,7 @@ void CWallet::RecursiveUpdateTxState(WalletBatch* batch, const Txid& tx_hash, co
 
             // If a transaction changes its tx state, that usually changes the balance
             // available of the outputs it spends. So force those to be recomputed
-            MarkInputsDirty(wtx.tx);
+            MarkInputsDirty(wtx.GetTx());
         }
     }
 }
@@ -1621,7 +1604,7 @@ void CWallet::blockDisconnected(const interfaces::BlockInfo& block)
                     return TxUpdate::UNCHANGED;
                 };
 
-                RecursiveUpdateTxState(wtx.tx->GetHash(), try_updating_state);
+                RecursiveUpdateTxState(wtx.GetTx()->GetHash(), try_updating_state);
             }
         }
     }
@@ -1721,10 +1704,10 @@ bool CWallet::IsMine(const COutPoint& outpoint) const
     if (!wtx) {
         return false;
     }
-    if (outpoint.n >= wtx->tx->vout.size()) {
+    if (outpoint.n >= wtx->GetTx()->vout.size()) {
         return false;
     }
-    return IsMine(wtx->tx->vout[outpoint.n]);
+    return IsMine(wtx->GetTx()->vout[outpoint.n]);
 }
 
 bool CWallet::IsFromMe(const CTransaction& tx) const
@@ -2109,7 +2092,7 @@ bool CWallet::SubmitTxMemoryPoolAndRelay(CWalletTx& wtx,
     // If broadcast fails for any reason, trying to set wtx.m_state here would be incorrect.
     // If transaction was previously in the mempool, it should be updated when
     // TransactionRemovedFromMempool fires.
-    bool ret = chain().broadcastTransaction(wtx.tx, m_default_max_tx_fee, broadcast_method, err_string);
+    bool ret = chain().broadcastTransaction(wtx.GetTx(), m_default_max_tx_fee, broadcast_method, err_string);
     if (ret) wtx.m_state = TxStateInMempool{};
     return ret;
 }
@@ -2223,12 +2206,12 @@ bool CWallet::SignTransaction(CMutableTransaction& tx) const
     std::map<COutPoint, Coin> coins;
     for (auto& input : tx.vin) {
         const auto mi = mapWallet.find(input.prevout.hash);
-        if(mi == mapWallet.end() || input.prevout.n >= mi->second.tx->vout.size()) {
+        if(mi == mapWallet.end() || input.prevout.n >= mi->second.GetTx()->vout.size()) {
             return false;
         }
         const CWalletTx& wtx = mi->second;
         int prev_height = wtx.state<TxStateConfirmed>() ? wtx.state<TxStateConfirmed>()->confirmed_block_height : 0;
-        coins[input.prevout] = Coin(wtx.tx->vout[input.prevout.n], prev_height, wtx.IsCoinBase());
+        coins[input.prevout] = Coin(wtx.GetTx()->vout[input.prevout.n], prev_height, wtx.IsCoinBase());
     }
     std::map<int, bilingual_str> input_errors;
     return SignTransaction(tx, coins, SIGHASH_DEFAULT, input_errors);
@@ -2269,7 +2252,7 @@ std::optional<PSBTError> CWallet::FillPSBT(PartiallySignedTransaction& psbtx, co
                 const CWalletTx& wtx = it->second;
                 // We only need the non_witness_utxo, which is a superset of the witness_utxo.
                 //   The signing code will switch to the smaller witness_utxo if this is ok.
-                input.non_witness_utxo = wtx.tx;
+                input.non_witness_utxo = wtx.GetTx();
             }
         }
     }
@@ -2518,7 +2501,7 @@ util::Result<void> CWallet::RemoveTxs(WalletBatch& batch, std::vector<Txid>& txs
         for (const auto& it : erased_txs) {
             const Txid hash{it->first};
             wtxOrdered.erase(it->second.m_it_wtxOrdered);
-            for (const auto& txin : it->second.tx->vin) {
+            for (const auto& txin : it->second.GetTx()->vin) {
                 auto range = mapTxSpends.equal_range(txin.prevout);
                 for (auto iter = range.first; iter != range.second; ++iter) {
                     if (iter->second == hash) {
@@ -2527,7 +2510,7 @@ util::Result<void> CWallet::RemoveTxs(WalletBatch& batch, std::vector<Txid>& txs
                     }
                 }
             }
-            for (unsigned int i = 0; i < it->second.tx->vout.size(); ++i) {
+            for (unsigned int i = 0; i < it->second.GetTx()->vout.size(); ++i) {
                 m_txos.erase(COutPoint(hash, i));
             }
             mapWallet.erase(it);
@@ -2692,9 +2675,9 @@ void CWallet::MarkDestinationsDirty(const std::set<CTxDestination>& destinations
     for (auto& entry : mapWallet) {
         CWalletTx& wtx = entry.second;
         if (wtx.m_is_cache_empty) continue;
-        for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
+        for (unsigned int i = 0; i < wtx.GetTx()->vout.size(); i++) {
             CTxDestination dst;
-            if (ExtractDestination(wtx.tx->vout[i].scriptPubKey, dst) && destinations.contains(dst)) {
+            if (ExtractDestination(wtx.GetTx()->vout[i].scriptPubKey, dst) && destinations.contains(dst)) {
                 wtx.MarkDirty();
                 break;
             }
@@ -4153,19 +4136,16 @@ util::Result<void> CWallet::ApplyMigrationData(WalletBatch& local_wallet_batch, 
     for (const auto& [_pos, wtx] : wtxOrdered) {
         // Check it is the watchonly wallet's
         // solvable_wallet doesn't need to be checked because transactions for those scripts weren't being watched for
-        bool is_mine = IsMine(*wtx->tx) || IsFromMe(*wtx->tx);
+        bool is_mine = IsMine(*wtx->GetTx()) || IsFromMe(*wtx->GetTx());
         if (data.watchonly_wallet) {
             LOCK(data.watchonly_wallet->cs_wallet);
-            if (data.watchonly_wallet->IsMine(*wtx->tx) || data.watchonly_wallet->IsFromMe(*wtx->tx)) {
+            if (data.watchonly_wallet->IsMine(*wtx->GetTx()) || data.watchonly_wallet->IsFromMe(*wtx->GetTx())) {
                 // Add to watchonly wallet
                 const Txid& hash = wtx->GetHash();
-                const CWalletTx& to_copy_wtx = *wtx;
-                if (!data.watchonly_wallet->LoadToWallet(hash, [&](CWalletTx& ins_wtx, bool new_tx) EXCLUSIVE_LOCKS_REQUIRED(data.watchonly_wallet->cs_wallet) {
-                    if (!new_tx) return false;
-                    ins_wtx.SetTx(to_copy_wtx.tx);
-                    ins_wtx.CopyFrom(to_copy_wtx);
-                    return true;
-                })) {
+                DataStream wtx_ser;
+                wtx_ser << *wtx;
+                CWalletTx copy_wtx(deserialize, wtx_ser, wtx->GetTxs());
+                if (!data.watchonly_wallet->LoadToWallet(std::move(copy_wtx))) {
                     return util::Error{strprintf(_("Error: Could not add watchonly tx %s to watchonly wallet"), wtx->GetHash().GetHex())};
                 }
                 watchonly_batch->WriteTx(data.watchonly_wallet->mapWallet.at(hash));
@@ -4719,8 +4699,8 @@ void CWallet::WriteBestBlock() const
 void CWallet::RefreshTXOsFromTx(const CWalletTx& wtx)
 {
     AssertLockHeld(cs_wallet);
-    for (uint32_t i = 0; i < wtx.tx->vout.size(); ++i) {
-        const CTxOut& txout = wtx.tx->vout.at(i);
+    for (uint32_t i = 0; i < wtx.GetTx()->vout.size(); ++i) {
+        const CTxOut& txout = wtx.GetTx()->vout.at(i);
         if (!IsMine(txout)) continue;
         COutPoint outpoint(wtx.GetHash(), i);
         if (m_txos.contains(outpoint)) {
