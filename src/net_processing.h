@@ -38,31 +38,31 @@ class Warnings;
 } // namespace node
 
 /** Whether transaction reconciliation protocol should be enabled by default. */
-static constexpr bool DEFAULT_TXRECONCILIATION_ENABLE{false};
+inline constexpr bool DEFAULT_TXRECONCILIATION_ENABLE{false};
 /** Default number of non-mempool transactions to keep around for block reconstruction. Includes
     orphan, replaced, and rejected transactions. */
-static const uint32_t DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN{100};
+inline constexpr uint32_t DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN{100};
 /** Default maximum per-second rate for sending transaction inventory to peers. */
-static constexpr unsigned int DEFAULT_TX_SEND_RATE{14};
-static const bool DEFAULT_PEERBLOOMFILTERS = false;
-static const bool DEFAULT_PEERBLOCKFILTERS = false;
+inline constexpr unsigned int DEFAULT_TX_SEND_RATE{14};
+inline constexpr bool DEFAULT_PEERBLOOMFILTERS = false;
+inline constexpr bool DEFAULT_PEERBLOCKFILTERS = false;
 /** Maximum number of outstanding CMPCTBLOCK requests for the same block. */
-static const unsigned int MAX_CMPCTBLOCKS_INFLIGHT_PER_BLOCK = 3;
+inline constexpr unsigned int MAX_CMPCTBLOCKS_INFLIGHT_PER_BLOCK = 3;
 /** Number of headers sent in one getheaders result. We rely on the assumption that if a peer sends
  *  less than this number, we reached its tip. Changing this value is a protocol upgrade. */
-static const unsigned int MAX_HEADERS_RESULTS = 2000;
+inline constexpr unsigned int MAX_HEADERS_RESULTS = 2000;
 /** Maximum size of a "headers" message.  This is enforced starting with
  *  SIZE_HEADERS_LIMIT_VERSION peers and prevents overloading if we have
  *  very large headers (due to auxpow).
  */
-static const unsigned int MAX_HEADERS_MSG_SIZE = (6 << 20); // 6 MiB
+inline constexpr unsigned int MAX_HEADERS_MSG_SIZE = (6 << 20); // 6 MiB
 /** Size of a headers message that is the threshold for assuming that the
  *  peer has more headers (even if we have less than MAX_HEADERS_RESULTS).
  *  This is used starting with SIZE_HEADERS_LIMIT_VERSION peers.
  */
-static const unsigned int THRESHOLD_HEADERS_SIZE = (4 << 20); // 4 MiB
+inline constexpr unsigned int THRESHOLD_HEADERS_SIZE = (4 << 20); // 4 MiB
 /** The compactblocks version we support. See BIP 152. */
-static constexpr uint64_t CMPCTBLOCKS_VERSION{2};
+inline constexpr uint64_t CMPCTBLOCKS_VERSION{2};
 
 struct CNodeStateStats {
     int nSyncHeight = -1;

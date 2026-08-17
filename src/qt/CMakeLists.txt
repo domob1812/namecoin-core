@@ -263,12 +263,12 @@ endif()
 
 add_subdirectory(locale)
 
-add_executable(namecoin-qt
+add_executable(namecoin-qt WIN32
   main.cpp
+  res/bitcoin-qt-res.rc
   ../init/bitcoin-qt.cpp
 )
 
-add_windows_resources(namecoin-qt res/bitcoin-qt-res.rc)
 add_windows_application_manifest(namecoin-qt)
 
 target_link_libraries(namecoin-qt
@@ -279,12 +279,9 @@ target_link_libraries(namecoin-qt
 
 import_plugins(namecoin-qt)
 install_binary_component(namecoin-qt HAS_MANPAGE)
-if(WIN32)
-  set_target_properties(namecoin-qt PROPERTIES WIN32_EXECUTABLE TRUE)
-endif()
 
 if(ENABLE_IPC)
-  add_executable(namecoin-gui
+  add_executable(namecoin-gui WIN32
     main.cpp
     ../init/bitcoin-gui.cpp
   )
@@ -296,9 +293,6 @@ if(ENABLE_IPC)
   )
   import_plugins(namecoin-gui)
   install_binary_component(namecoin-gui INTERNAL)
-  if(WIN32)
-    set_target_properties(namecoin-gui PROPERTIES WIN32_EXECUTABLE TRUE)
-  endif()
 endif()
 
 if(BUILD_GUI_TESTS)

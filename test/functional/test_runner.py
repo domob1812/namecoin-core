@@ -125,6 +125,7 @@ BASE_SCRIPTS = [
     'feature_segwit.py --v2transport',
     'feature_segwit.py --v1transport',
     'p2p_tx_download.py',
+    'feature_txindex_compatibility.py',
     'wallet_avoidreuse.py',
     'feature_abortnode.py',
     'wallet_address_types.py',
@@ -174,6 +175,7 @@ BASE_SCRIPTS = [
     'wallet_blank.py',
     'wallet_keypool_topup.py',
     'wallet_fast_rescan.py',
+    'wallet_derivehdkey.py',
     'wallet_gethdkeys.py',
     'wallet_createwalletdescriptor.py',
     'wallet_exported_watchonly.py',
@@ -401,6 +403,7 @@ BASE_SCRIPTS = [
     'p2p_ibd_txrelay.py',
     'p2p_seednode.py',
     'rpc_openrpc.py',
+    'wallet_ancient_migration.py',
     # Don't append tests at the end to avoid merge conflicts
     # Put them in a random line within the section that fits their approximate run-time
 
