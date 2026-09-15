@@ -5,47 +5,76 @@
 
 #include <rpc/rawtransaction.h>
 
+#include <rpc/register.h> // IWYU pragma: associated
+
+#include <addresstype.h>
 #include <base58.h>
 #include <chain.h>
 #include <coins.h>
+#include <common/types.h>
 #include <consensus/amount.h>
 #include <consensus/validation.h>
+#include <core_io.h>
+#include <crypto/common.h>
+#include <crypto/hex_base.h>
+#include <hash.h>
 #include <index/txindex.h>
+#include <kernel/chainparams.h>
+#include <key.h>
 #include <key_io.h>
 #include <node/blockstorage.h>
 #include <node/coin.h>
 #include <node/context.h>
 #include <node/psbt.h>
 #include <node/transaction.h>
-#include <node/types.h>
-#include <policy/packages.h>
-#include <policy/policy.h>
-#include <policy/rbf.h>
+#include <policy/feerate.h>
+#include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <psbt.h>
+#include <pubkey.h>
 #include <random.h>
-#include <rpc/blockchain.h>
+#include <rpc/protocol.h>
 #include <rpc/rawtransaction_util.h>
+#include <rpc/request.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
 #include <rpc/util.h>
+#include <script/interpreter.h>
+#include <script/keyorigin.h>
 #include <script/script.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
 #include <script/solver.h>
+#include <serialize.h>
+#include <streams.h>
+#include <sync.h>
+#include <tinyformat.h>
+#include <txmempool.h>
 #include <uint256.h>
 #include <undo.h>
+#include <univalue.h>
 #include <util/bip32.h>
 #include <util/check.h>
+#include <util/expected.h>
+#include <util/result.h>
 #include <util/strencodings.h>
-#include <util/string.h>
+#include <util/translation.h>
 #include <util/vector.h>
 #include <validation.h>
-#include <validationinterface.h>
 
+#include <algorithm>
+#include <any>
+#include <bitset>
+#include <cstddef>
 #include <cstdint>
-
-#include <univalue.h>
+#include <map>
+#include <memory>
+#include <optional>
+#include <set>
+#include <span>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 using node::AnalyzePSBT;
 using node::FindCoins;
@@ -363,7 +392,7 @@ static RPCMethod getrawtransaction()
     }
 
     CTxUndo* undoTX {nullptr};
-    auto it = std::find_if(block.vtx.begin(), block.vtx.end(), [tx](CTransactionRef t){ return *t == *tx; });
+    auto it = std::find_if(block.vtx.begin(), block.vtx.end(), [tx](CTransactionRef t){ return t->Equals(*tx); });
     if (it != block.vtx.end()) {
         // -1 as blockundo does not have coinbase tx
         undoTX = &blockUndo.vtxundo.at(it - block.vtx.begin() - 1);
@@ -1165,8 +1194,8 @@ static RPCMethod decodepsbt()
 
     // Unknown data
     UniValue unknowns(UniValue::VOBJ);
-    for (auto entry : psbtx.unknown) {
-        unknowns.pushKV(HexStr(entry.first), HexStr(entry.second));
+    for (auto [key, value] : psbtx.unknown) {
+        unknowns.pushKVEnd(HexStr(key), HexStr(value));
     }
     result.pushKV("unknown", std::move(unknowns));
 
@@ -1225,7 +1254,7 @@ static RPCMethod decodepsbt()
 
         // Sighash
         if (input.sighash_type != std::nullopt) {
-            in.pushKV("sighash", SighashToStr((unsigned char)*input.sighash_type));
+            in.pushKV("sighash", SighashToStr(*input.sighash_type));
         }
 
         // Redeem script and witness script
@@ -1273,7 +1302,7 @@ static RPCMethod decodepsbt()
         if (!input.ripemd160_preimages.empty()) {
             UniValue ripemd160_preimages(UniValue::VOBJ);
             for (const auto& [hash, preimage] : input.ripemd160_preimages) {
-                ripemd160_preimages.pushKV(HexStr(hash), HexStr(preimage));
+                ripemd160_preimages.pushKVEnd(HexStr(hash), HexStr(preimage));
             }
             in.pushKV("ripemd160_preimages", std::move(ripemd160_preimages));
         }
@@ -1282,7 +1311,7 @@ static RPCMethod decodepsbt()
         if (!input.sha256_preimages.empty()) {
             UniValue sha256_preimages(UniValue::VOBJ);
             for (const auto& [hash, preimage] : input.sha256_preimages) {
-                sha256_preimages.pushKV(HexStr(hash), HexStr(preimage));
+                sha256_preimages.pushKVEnd(HexStr(hash), HexStr(preimage));
             }
             in.pushKV("sha256_preimages", std::move(sha256_preimages));
         }
@@ -1291,7 +1320,7 @@ static RPCMethod decodepsbt()
         if (!input.hash160_preimages.empty()) {
             UniValue hash160_preimages(UniValue::VOBJ);
             for (const auto& [hash, preimage] : input.hash160_preimages) {
-                hash160_preimages.pushKV(HexStr(hash), HexStr(preimage));
+                hash160_preimages.pushKVEnd(HexStr(hash), HexStr(preimage));
             }
             in.pushKV("hash160_preimages", std::move(hash160_preimages));
         }
@@ -1300,7 +1329,7 @@ static RPCMethod decodepsbt()
         if (!input.hash256_preimages.empty()) {
             UniValue hash256_preimages(UniValue::VOBJ);
             for (const auto& [hash, preimage] : input.hash256_preimages) {
-                hash256_preimages.pushKV(HexStr(hash), HexStr(preimage));
+                hash256_preimages.pushKVEnd(HexStr(hash), HexStr(preimage));
             }
             in.pushKV("hash256_preimages", std::move(hash256_preimages));
         }
@@ -1449,8 +1478,8 @@ static RPCMethod decodepsbt()
         // Unknown data
         if (input.unknown.size() > 0) {
             UniValue unknowns(UniValue::VOBJ);
-            for (auto entry : input.unknown) {
-                unknowns.pushKV(HexStr(entry.first), HexStr(entry.second));
+            for (auto [key, value] : input.unknown) {
+                unknowns.pushKVEnd(HexStr(key), HexStr(value));
             }
             in.pushKV("unknown", std::move(unknowns));
         }
@@ -1568,8 +1597,8 @@ static RPCMethod decodepsbt()
         // Unknown data
         if (output.unknown.size() > 0) {
             UniValue unknowns(UniValue::VOBJ);
-            for (auto entry : output.unknown) {
-                unknowns.pushKV(HexStr(entry.first), HexStr(entry.second));
+            for (auto [key, value] : output.unknown) {
+                unknowns.pushKVEnd(HexStr(key), HexStr(value));
             }
             out.pushKV("unknown", std::move(unknowns));
         }

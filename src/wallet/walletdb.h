@@ -99,8 +99,6 @@ public:
     uint32_t nExternalChainCounter;
     uint32_t nInternalChainCounter;
     CKeyID seed_id; //!< seed hash160
-    int64_t m_next_external_index{0}; // Next index in the keypool to be used. Memory only.
-    int64_t m_next_internal_index{0}; // Next index in the keypool to be used. Memory only.
 
     static constexpr int VERSION_HD_BASE{1};
     static constexpr int VERSION_HD_CHAIN_SPLIT{2};
@@ -230,9 +228,13 @@ public:
     bool WritePurpose(const std::string& strAddress, const std::string& purpose);
     bool ErasePurpose(const std::string& strAddress);
 
-    bool WriteTx(const CWalletTx& wtx);
+    // Write a CWalletTx and all variant witness txs (single tx record and multiple wtxvariant records)
+    bool WriteFullTx(const CWalletTx& wtx);
     bool EraseTx(Txid hash);
+    // Write a single witness variant of CWalletTx (single wtxvariant record)
     bool WriteWtxVariant(const Txid& txid, const CTransactionRef& tx);
+    // Write only the canonical witness tx and all of the tx metadata (single tx record)
+    bool WriteTxMetadata(const CWalletTx& wtx);
 
     bool WriteKeyMetadata(const CKeyMetadata& meta, const CPubKey& pubkey, bool overwrite);
     bool WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata &keyMeta);

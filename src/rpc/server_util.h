@@ -7,8 +7,6 @@
 
 #include <any>
 
-#include <consensus/params.h>
-
 class AddrMan;
 class ArgsManager;
 class CBlockIndex;
@@ -19,6 +17,10 @@ class ChainstateManager;
 class JSONRPCRequest;
 class PeerManager;
 class BanMan;
+namespace Consensus {
+struct Params;
+} // namespace Consensus
+
 namespace node {
 struct NodeContext;
 } // namespace node
