@@ -225,7 +225,7 @@ private:
 public:
 
   CNameIterator*
-  IterateNames () const
+  IterateNames () const override
   {
     return new Iterator ();
   }
@@ -936,7 +936,7 @@ BOOST_AUTO_TEST_CASE (name_expire_utxo)
 
 BOOST_AUTO_TEST_CASE (encoding_to_from_string)
 {
-  for (const std::string& encStr : {"ascii", "utf8", "hex"})
+  for (const std::string encStr : {"ascii", "utf8", "hex"})
     BOOST_CHECK_EQUAL (EncodingToString (EncodingFromString (encStr)), encStr);
 
   BOOST_CHECK_EQUAL (EncodingToString (NameEncoding::ASCII), "ascii");
