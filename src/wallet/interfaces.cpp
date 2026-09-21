@@ -11,6 +11,7 @@
 #include <node/context.h>
 #include <node/types.h>
 #include <primitives/transaction.h>
+#include <pubkey.h>
 #include <rpc/server.h>
 #include <scheduler.h>
 #include <support/allocators/secure.h>
@@ -25,13 +26,16 @@
 #include <wallet/export.h>
 #include <wallet/feebumper.h>
 #include <wallet/fees.h>
+#include <wallet/imports.h>
 #include <wallet/load.h>
 #include <wallet/receive.h>
 #include <wallet/rpc/wallet.h>
 #include <wallet/spend.h>
+#include <wallet/scan.h>
 #include <wallet/wallet.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -152,7 +156,7 @@ public:
     {
         return m_wallet->ChangeWalletPassphrase(old_wallet_passphrase, new_wallet_passphrase);
     }
-    void abortRescan() override { m_wallet->AbortRescan(); }
+    void abortRescan() override { m_wallet->Scanner().Abort(); }
     bool backupWallet(const std::string& filename) override { return m_wallet->BackupWallet(filename); }
     std::string getWalletName() override { return m_wallet->GetName(); }
     util::Result<CTxDestination> getNewDestination(const OutputType type, const std::string& label) override
@@ -168,6 +172,11 @@ public:
         }
         return false;
     }
+    util::Expected<CExtPubKey, wallet::WalletError> addHDKey(const std::optional<CExtKey>& key) override
+    {
+        return m_wallet->AddHDKey(key);
+    }
+
     SigningResult signMessage(const std::string& message, const PKHash& pkhash, std::string& str_sig) override
     {
         return m_wallet->SignMessage(message, pkhash, str_sig);
@@ -373,6 +382,10 @@ public:
         bool& complete) override
     {
         return m_wallet->FillPSBT(psbtx, options, complete, n_signed);
+    }
+    std::vector<wallet::ImportResult> importDescriptors(std::vector<wallet::ImportDescriptorRequest>& requests) override
+    {
+        return wallet::ProcessDescriptorsImport(*m_wallet, requests);
     }
     WalletBalances getBalances() override
     {

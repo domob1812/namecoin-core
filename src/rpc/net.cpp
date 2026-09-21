@@ -18,6 +18,7 @@
 #include <net_types.h>
 #include <netaddress.h>
 #include <netbase.h>
+#include <netgroup.h>
 #include <node/connection_types.h>
 #include <node/context.h>
 #include <node/protocol_version.h>
@@ -32,6 +33,7 @@
 #include <sync.h>
 #include <tinyformat.h>
 #include <txmempool.h>
+#include <uint256.h>
 #include <univalue.h>
 #include <util/chaintype.h>
 #include <util/check.h>
@@ -41,7 +43,6 @@
 #include <validation.h>
 #ifdef ENABLE_EMBEDDED_ASMAP
 #include <common/args.h>
-#include <hash.h>
 #include <node/data/ip_asn.dat.h>
 #include <streams.h>
 #include <util/asmap.h>
@@ -343,8 +344,9 @@ static RPCMethod addnode()
         "addnode",
         "Attempts to add or remove a node from the addnode list.\n"
                 "Or try a connection to a node once.\n"
-                "Nodes added using addnode (or -connect) are protected from DoS disconnection and are not required to be\n"
-                "full nodes/support SegWit as other outbound peers are (though such peers will not be synced from).\n" +
+                "Nodes added using addnode (or -connect) are protected from DoS disconnection and IBD block stalling\n"
+                "disconnection, and are not required to be full nodes or support SegWit as other outbound peers are (though\n"
+                "such peers will not be synced from).\n" +
                 strprintf("Addnode connections are limited to %u at a time", MAX_ADDNODE_CONNECTIONS) +
                 " and are counted separately from the -maxconnections limit.\n",
                 {
@@ -419,7 +421,7 @@ static RPCMethod addconnection()
         "Open an outbound connection to a specified node. This RPC is for testing only.\n",
         {
             {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The IP address and port to attempt connecting to."},
-            {"connection_type", RPCArg::Type::STR, RPCArg::Optional::NO, "Type of connection to open (\"outbound-full-relay\", \"block-relay-only\", \"addr-fetch\" or \"feeler\")."},
+            {"connection_type", RPCArg::Type::STR, RPCArg::Optional::NO, "Type of connection to open (\"outbound-full-relay\", \"block-relay-only\", \"addr-fetch\", \"feeler\" or \"manual\")."},
             {"v2transport", RPCArg::Type::BOOL, RPCArg::Optional::NO, "Attempt to connect using BIP324 v2 transport protocol"},
         },
         RPCResult{
@@ -449,6 +451,8 @@ static RPCMethod addconnection()
         conn_type = ConnectionType::ADDR_FETCH;
     } else if (conn_type_in == "feeler") {
         conn_type = ConnectionType::FEELER;
+    } else if (conn_type_in == "manual") {
+        conn_type = ConnectionType::MANUAL;
     } else {
         throw JSONRPCError(RPC_INVALID_PARAMETER, self.ToString());
     }
@@ -710,6 +714,7 @@ static RPCMethod getnetworkinfo()
                                 {RPCResult::Type::BOOL, "proxy_randomize_credentials", "Whether randomized credentials are used"},
                             }},
                         }},
+                        {RPCResult::Type::STR_HEX, "asmap_version", /*optional=*/true, "the SHA256 hash of the asmap data used for IP bucketing (only displayed if the -asmap config option is set)"},
                         {RPCResult::Type::STR_AMOUNT, "relayfee", "minimum relay fee rate for transactions in " + CURRENCY_UNIT + "/kvB"},
                         {RPCResult::Type::STR_AMOUNT, "incrementalfee", "minimum fee rate increment for mempool limiting or replacement in " + CURRENCY_UNIT + "/kvB"},
                         {RPCResult::Type::ARR, "localaddresses", "list of local addresses",
@@ -767,6 +772,10 @@ static RPCMethod getnetworkinfo()
     obj.pushKV("connections_in", connman.GetNodeCount(ConnectionDirection::In));
     obj.pushKV("connections_out", connman.GetNodeCount(ConnectionDirection::Out));
     obj.pushKV("networks",      GetNetworksInfo());
+    const NetGroupManager& netgroupman{*CHECK_NONFATAL(node.netgroupman)};
+    if (netgroupman.UsingASMap()) {
+        obj.pushKV("asmap_version", HexStr(netgroupman.GetAsmapVersion()));
+    }
     const CTxMemPool& mempool = EnsureAnyMemPool(request.context);
     // Those fields can be deprecated, to be replaced by the getmempoolinfo fields
     obj.pushKV("relayfee", ValueFromAmount(mempool.m_opts.min_relay_feerate.GetFeePerK()));
@@ -1210,13 +1219,10 @@ static RPCMethod exportasmap()
                 throw JSONRPCError(RPC_MISC_ERROR, strprintf("Failed to close asmap file: %s", fs::PathToString(export_path)));
             }
 
-            HashWriter hasher;
-            hasher.write(node::data::ip_asn);
-
             UniValue result(UniValue::VOBJ);
             result.pushKV("path", export_path.utf8string());
             result.pushKV("bytes_written", node::data::ip_asn.size());
-            result.pushKV("file_hash", HexStr(hasher.GetSHA256()));
+            result.pushKV("file_hash", HexStr(AsmapVersion(node::data::ip_asn)));
             return result;
 #endif
         },

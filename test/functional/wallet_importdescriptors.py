@@ -236,7 +236,7 @@ class ImportDescriptorsTest(BitcoinTestFramework):
 
             importing = thread.submit(w_import.importdescriptors, descriptor)
 
-            # Keep trying because an abort before ScanForWalletTransactions starts
+            # Keep trying because an abort before wallet transaction scan starts
             # is reset when the scan loop begins.
             abort_succeeded = False
             abort_deadline = time.time() + 30 * self.options.timeout_factor
@@ -329,6 +329,15 @@ class ImportDescriptorsTest(BitcoinTestFramework):
             global_error=True,
             error_code=-3,
             error_message='Expected number or "now" timestamp value for key. got type string')
+
+        import_request = {"desc": descsum_create("pkh(" + key.pubkey + ")"),
+            "timestamp": -1,
+            "label": "Descriptor import test"}
+        self.test_importdesc(import_request,
+            success=False,
+            global_error=True,
+            error_code=-8,
+            error_message="Timestamp must not be negative")
 
         # # Test importing of a P2PKH descriptor
         key = get_generate_key()
@@ -465,6 +474,13 @@ class ImportDescriptorsTest(BitcoinTestFramework):
                               success=False,
                               error_code=-8,
                               error_message='Ranged descriptors should not have a label')
+
+        self.log.info("Ranged descriptors can have an explicitly empty label")
+        self.test_importdesc({"desc":descsum_create("sh(wpkh(" + xpub + "/0/1/*))"),
+                              "timestamp": "now",
+                              "range": [0, 100],
+                              "label": ""},
+                              success=True)
 
         self.log.info("Ranged descriptors cannot have labels - even if range not provided by user and only implied by asterisk (*)")
         self.test_importdesc({"desc":descsum_create("wpkh(" + xpub + "/100/0/*)"),
