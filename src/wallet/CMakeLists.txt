@@ -14,6 +14,7 @@ add_library(bitcoin_wallet STATIC EXCLUDE_FROM_ALL
   external_signer_scriptpubkeyman.cpp
   feebumper.cpp
   fees.cpp
+  imports.cpp
   interfaces.cpp
   load.cpp
   migrate.cpp
@@ -29,6 +30,7 @@ add_library(bitcoin_wallet STATIC EXCLUDE_FROM_ALL
   rpc/util.cpp
   rpc/wallet.cpp
   rpc/walletnames.cpp
+  scan.cpp
   scriptpubkeyman.cpp
   spend.cpp
   sqlite.cpp
