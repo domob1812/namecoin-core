@@ -88,12 +88,14 @@ static RPCMethod sendrawtransaction()
         "privacy by leaking the transaction's origin, as nodes will normally not\n"
         "rebroadcast non-wallet transactions already in their mempool.\n"
 
-        "\nIf -privatebroadcast is enabled, then the transaction will be sent only via\n"
-        "dedicated, short-lived connections to Tor or I2P peers or IPv4/IPv6 peers\n"
-        "via the Tor network. This conceals the transaction's origin. The transaction\n"
-        "will only enter the local mempool when it is received back from the network.\n"
+        "\nIf -privatebroadcast is enabled, then the transaction will be sent via\n"
+        "dedicated, short-lived connections to Tor or I2P peers, or to IPv4/IPv6 peers\n"
+        "via the Tor network. This provides best-effort concealment of the transaction's origin.\n"
+        "Private broadcast is experimental and may change in future releases.\n"
+        "Submission does not itself add the transaction to the local mempool; normal\n"
+        "mempool acceptance and relay apply when it is received back from the network.\n"
         "The private broadcast queue is bounded: when it is full, this RPC fails and\n"
-        "the transaction is not scheduled, until an existing one completes or is\n"
+        "the transaction is not scheduled until an existing one completes or is\n"
         "aborted. Use getprivatebroadcastinfo to inspect the queue and abortprivatebroadcast to abort.\n"
 
         "\nA specific exception, RPC_TRANSACTION_ALREADY_IN_UTXO_SET, may throw if the transaction cannot be added to the mempool.\n"
@@ -141,8 +143,6 @@ static RPCMethod sendrawtransaction()
 
             const CFeeRate max_raw_tx_fee_rate{ParseFeeRate(self.Arg<UniValue>("maxfeerate"))};
 
-            int64_t virtual_size = GetVirtualTransactionSize(*tx);
-            CAmount max_raw_tx_fee = max_raw_tx_fee_rate.GetFee(virtual_size);
 
             std::string err_string;
             AssertLockNotHeld(cs_main);
@@ -162,7 +162,8 @@ static RPCMethod sendrawtransaction()
             const TransactionError err = BroadcastTransaction(node,
                                                               tx,
                                                               err_string,
-                                                              max_raw_tx_fee,
+                                                              /*max_tx_fee=*/0,
+                                                              max_raw_tx_fee_rate,
                                                               method,
                                                               /*wait_callback=*/true);
             if (TransactionError::OK != err) {
@@ -1516,12 +1517,7 @@ static RPCMethod submitpackage()
 
                 // We do not expect an error here; we are only broadcasting things already/still in mempool
                 std::string err_string;
-                const auto err = BroadcastTransaction(node,
-                                                      tx,
-                                                      err_string,
-                                                      /*max_tx_fee=*/0,
-                                                      node::TxBroadcast::MEMPOOL_AND_BROADCAST_TO_ALL,
-                                                      /*wait_callback=*/true);
+                const auto err = BroadcastTransaction(node, tx, err_string, /*max_tx_fee=*/0, /*max_tx_fee_rate=*/CFeeRate(0), /*broadcast_method=*/node::TxBroadcast::MEMPOOL_AND_BROADCAST_TO_ALL, /*wait_callback=*/true);
                 if (err != TransactionError::OK) {
                     throw JSONRPCTransactionError(err,
                         strprintf("transaction broadcast failed: %s (%d transactions were broadcast successfully)",

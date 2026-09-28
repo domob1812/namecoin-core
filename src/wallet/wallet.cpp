@@ -587,7 +587,26 @@ static bool DecryptMasterKey(const SecureString& wallet_passphrase, const CMaste
     return true;
 }
 
-bool CWallet::Unlock(const SecureString& strWalletPassphrase)
+static util::Unexpected<WalletError> UnlockPassphraseError(const SecureString& passphrase)
+{
+    bilingual_str message;
+    if (passphrase.find('\0') != std::string::npos) {
+        // The passphrase has a null character (see #27067 for details)
+        message = _("Error: The wallet passphrase entered is incorrect. "
+                    "It contains a null character (ie - a zero byte). "
+                    "If the passphrase was set with a version of this software prior to 25.0, "
+                    "please try again with only the characters up to — but not including — "
+                    "the first null character. If this is successful, please set a new "
+                    "passphrase to avoid this issue in the future.");
+    } else if (passphrase.empty()) {
+        message = _("Error: The wallet passphrase was not provided");
+    } else {
+        message = _("Error: The wallet passphrase entered was incorrect.");
+    }
+    return util::Unexpected{WalletError{WalletErrorCode::PassphraseIncorrect, std::move(message)}};
+}
+
+util::Expected<void, WalletError> CWallet::Unlock(const SecureString& strWalletPassphrase)
 {
     CKeyingMaterial plain_master_key;
 
@@ -601,14 +620,14 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase)
             if (Unlock(plain_master_key)) {
                 // Now that we've unlocked, upgrade the descriptor cache
                 UpgradeDescriptorCache();
-                return true;
+                return {};
             }
         }
     }
-    return false;
+    return UnlockPassphraseError(strWalletPassphrase);
 }
 
-bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase)
+util::Expected<void, WalletError> CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase)
 {
     bool fWasLocked = IsLocked();
 
@@ -620,24 +639,26 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
         for (auto& [master_key_id, master_key] : mapMasterKeys)
         {
             if (!DecryptMasterKey(strOldWalletPassphrase, master_key, plain_master_key)) {
-                return false;
+                return UnlockPassphraseError(strOldWalletPassphrase);
             }
             if (Unlock(plain_master_key))
             {
-                if (!EncryptMasterKey(strNewWalletPassphrase, plain_master_key, master_key)) {
-                    return false;
+                if (fWasLocked) Lock();
+                CMasterKey new_master_key{master_key};
+                if (!EncryptMasterKey(strNewWalletPassphrase, plain_master_key, new_master_key)) {
+                    return util::Unexpected{WalletError{WalletErrorCode::GenericError, _("Error: Unable to encrypt encryption key with new passphrase")}};
                 }
-                WalletLogPrintf("Wallet passphrase changed to an nDeriveIterations of %i\n", master_key.nDeriveIterations);
-
-                WalletBatch(GetDatabase()).WriteMasterKey(master_key_id, master_key);
-                if (fWasLocked)
-                    Lock();
-                return true;
+                if (!WalletBatch(GetDatabase()).WriteMasterKey(master_key_id, new_master_key)) {
+                    return util::Unexpected{WalletError{WalletErrorCode::GenericError, _("Error: Writing the new encryption key to the wallet database failed")}};
+                }
+                WalletLogPrintf("Wallet passphrase changed to an nDeriveIterations of %i\n", new_master_key.nDeriveIterations);
+                master_key = std::move(new_master_key);
+                return {};
             }
         }
     }
 
-    return false;
+    return UnlockPassphraseError(strOldWalletPassphrase);
 }
 
 void CWallet::SetLastBlockProcessedInMem(int block_height, uint256 block_hash)
@@ -836,37 +857,23 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
 
     {
         LOCK2(m_relock_mutex, cs_wallet);
-        mapMasterKeys[++nMasterKeyMaxID] = master_key;
-        WalletBatch* encrypted_batch = new WalletBatch(GetDatabase());
-        if (!encrypted_batch->TxnBegin()) {
-            delete encrypted_batch;
-            encrypted_batch = nullptr;
+        const unsigned int new_master_key_id{nMasterKeyMaxID + 1};
+        if (!RunWithinTxn(GetDatabase(), /*process_desc=*/"wallet encryption", [&](WalletBatch& batch) {
+                if (!batch.WriteMasterKey(new_master_key_id, master_key)) {
+                    return false;
+                }
+                for (const auto& spk_man_pair : m_spk_managers) {
+                    if (!spk_man_pair.second->Encrypt(plain_master_key, &batch)) {
+                        return false;
+                    }
+                }
+                return true;
+            })) {
             return false;
         }
-        encrypted_batch->WriteMasterKey(nMasterKeyMaxID, master_key);
 
-        for (const auto& spk_man_pair : m_spk_managers) {
-            auto spk_man = spk_man_pair.second.get();
-            if (!spk_man->Encrypt(plain_master_key, encrypted_batch)) {
-                encrypted_batch->TxnAbort();
-                delete encrypted_batch;
-                encrypted_batch = nullptr;
-                // We now probably have half of our keys encrypted in memory, and half not...
-                // die and let the user reload the unencrypted wallet.
-                assert(false);
-            }
-        }
-
-        if (!encrypted_batch->TxnCommit()) {
-            delete encrypted_batch;
-            encrypted_batch = nullptr;
-            // We now have keys encrypted in memory, but not on disk...
-            // die to avoid confusion and let the user reload the unencrypted wallet.
-            assert(false);
-        }
-
-        delete encrypted_batch;
-        encrypted_batch = nullptr;
+        nMasterKeyMaxID = new_master_key_id;
+        mapMasterKeys[new_master_key_id] = std::move(master_key);
 
         Lock();
         if (!Unlock(strWalletPassphrase)) {
@@ -1848,7 +1855,7 @@ bool CWallet::SubmitTxMemoryPoolAndRelay(CWalletTx& wtx,
     // If broadcast fails for any reason, trying to set wtx.m_state here would be incorrect.
     // If transaction was previously in the mempool, it should be updated when
     // TransactionRemovedFromMempool fires.
-    bool ret = chain().broadcastTransaction(wtx.GetTx(), m_default_max_tx_fee, broadcast_method, err_string);
+    bool ret = chain().broadcastTransaction(wtx.GetTx(), m_max_tx_fee, m_max_tx_fee_rate, broadcast_method, err_string);
     if (ret) wtx.m_state = TxStateInMempool{};
     return ret;
 }
@@ -2804,17 +2811,17 @@ bool CWallet::LoadWalletArgs(std::shared_ptr<CWallet> wallet, const WalletContex
     }
 
     if (const auto arg{args.GetArg("-maxapsfee")}) {
-        const std::string& max_aps_fee{*arg};
-        if (max_aps_fee == "-1") {
+        const std::string& max_aps_fee_str{*arg};
+        if (max_aps_fee_str == "-1") {
             wallet->m_max_aps_fee = -1;
-        } else if (std::optional<CAmount> max_fee = ParseMoney(max_aps_fee)) {
-            if (max_fee.value() > HIGH_APS_FEE) {
+        } else if (std::optional<CAmount> max_aps_fee = ParseMoney(max_aps_fee_str)) {
+            if (max_aps_fee.value() > HIGH_APS_FEE) {
                 warnings.push_back(AmountHighWarn("-maxapsfee") + Untranslated(" ") +
                                   _("This is the maximum transaction fee you pay (in addition to the normal fee) to prioritize partial spend avoidance over regular coin selection."));
             }
-            wallet->m_max_aps_fee = max_fee.value();
+            wallet->m_max_aps_fee = max_aps_fee.value();
         } else {
-            error = AmountErrMsg("maxapsfee", max_aps_fee);
+            error = AmountErrMsg("maxapsfee", max_aps_fee_str);
             return false;
         }
     }
@@ -2847,21 +2854,43 @@ bool CWallet::LoadWalletArgs(std::shared_ptr<CWallet> wallet, const WalletContex
     }
 
     if (const auto arg{args.GetArg("-maxtxfee")}) {
-        std::optional<CAmount> max_fee = ParseMoney(*arg);
-        if (!max_fee) {
+        std::optional<CAmount> max_tx_fee = ParseMoney(*arg);
+        if (!max_tx_fee) {
             error = AmountErrMsg("maxtxfee", *arg);
             return false;
-        } else if (max_fee.value() > HIGH_MAX_TX_FEE) {
+        } else if (max_tx_fee.value() > HIGH_MAX_TX_FEE) {
             warnings.push_back(strprintf(_("%s is set very high! Fees this large could be paid on a single transaction."), "-maxtxfee"));
         }
-
-        if (chain && CFeeRate{max_fee.value(), 1000} < chain->relayMinFee()) {
-            error = strprintf(_("Invalid amount for %s=<amount>: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)"),
-                "-maxtxfee", *arg, chain->relayMinFee().ToString());
-            return false;
+        const CFeeRate max_txfee{max_tx_fee.value(), 1000};
+        if (chain && max_txfee < chain->relayMinFee()) {
+            // Wallet prevents creating transactions with fee rates lower than minrelaytxfee.
+            // Also the wallet prevents creating transactions with base fee above maxtxfee.
+            // Warn when a 1kvb transaction, with a base fee set to maxtxfee, has a fee rate less than minrelaytxfee.
+            // It is likely that some transactions with fee rates greater than or equal to the minrelaytxfee will exceed maxtxfee.
+            // In such cases, the wallet won't be able to create transactions. Therefore, warn the user.
+            warnings.push_back(strprintf(_("Invalid amount for %s=<amount>: '%s' conflicts with the minimum relay transaction feerate %s. Please set a higher %s or lower %s"),
+                                         "-maxtxfee", max_txfee.ToString(), chain->relayMinFee().ToString(), "-maxtxfee", "-minrelaytxfee"));
         }
 
-        wallet->m_default_max_tx_fee = max_fee.value();
+        wallet->m_max_tx_fee = max_tx_fee.value();
+    }
+
+    if (const auto arg{args.GetArg("-maxfeerate")}) {
+        std::optional<CAmount> max_tx_fee_rate = ParseMoney(*arg);
+        if (!max_tx_fee_rate) {
+            error = AmountErrMsg("maxfeerate", *arg);
+            return false;
+        }
+        if (chain && CFeeRate(*max_tx_fee_rate) < chain->relayMinFee()) {
+            error = strprintf(_("Invalid amount for %s=<amount>: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)"),
+                              "-maxfeerate", *arg, chain->relayMinFee().ToString());
+            return false;
+        }
+        if (CFeeRate(*max_tx_fee_rate) > HIGH_MAX_TX_FEERATE) {
+            warnings.push_back(strprintf(_("%s is set very high! Fee rate this large could be paid on a single transaction."), "-maxfeerate"));
+        }
+
+        wallet->m_max_tx_fee_rate = CFeeRate(*max_tx_fee_rate);
     }
 
     if (const auto arg{args.GetArg("-consolidatefeerate")}) {
@@ -4226,16 +4255,8 @@ util::Result<MigrationResult> MigrateLegacyToDescriptor(std::shared_ptr<CWallet>
     bool success = false;
 
     // Unlock the wallet if needed
-    if (local_wallet->IsLocked() && !local_wallet->Unlock(passphrase)) {
-        if (passphrase.find('\0') == std::string::npos) {
-            return util::Error{Untranslated("Error: Wallet decryption failed, the wallet passphrase was not provided or was incorrect.")};
-        } else {
-            return util::Error{Untranslated("Error: Wallet decryption failed, the wallet passphrase entered was incorrect. "
-                                            "The passphrase contains a null character (ie - a zero byte). "
-                                            "If this passphrase was set with a version of this software prior to 25.0, "
-                                            "please try again with only the characters up to — but not including — "
-                                            "the first null character.")};
-        }
+    if (local_wallet->IsLocked()) {
+        if (auto unlocked{local_wallet->Unlock(passphrase)}; !unlocked) return util::Error{unlocked.error().message};
     }
 
     // Indicates whether the current wallet is empty after migration.

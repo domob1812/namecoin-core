@@ -181,12 +181,9 @@ if [ "$RUN_CHECK_DEPS" = "true" ]; then
   "${BASE_ROOT_DIR}/contrib/devtools/check-deps.sh" "${BASE_BUILD_DIR}"
 fi
 
-if [[ "$CI_OS_NAME" == "macos" && "${GOAL}" = "install deploy" ]]; then
+if [[ "$RUN_MACOS_CODESIGN" == "true" ]]; then
   unzip "${BASE_BUILD_DIR}/bitcoin-macos-app.zip" -d "${BASE_BUILD_DIR}/deploy"
-  if ! ( codesign --verify --deep --strict "${BASE_BUILD_DIR}/deploy/Bitcoin-Qt.app" ); then
-    echo "Codesigning failed."
-    false
-  fi
+  codesign --verify --deep --strict "${BASE_BUILD_DIR}/deploy/Bitcoin-Qt.app"
 fi
 
 if [ "$RUN_UNIT_TESTS" = "true" ]; then
@@ -235,7 +232,7 @@ fi
 
 if [[ "${RUN_IWYU}" == true ]]; then
   # TODO: Consider enforcing IWYU across the entire codebase.
-  FILES_WITH_ENFORCED_IWYU='/src/((bench|common|consensus|crypto|index|init|kernel|primitives|rpc|script|univalue/(lib|test)|util|zmq)/.*|node/(blockstorage|interfaces|miner|mining_args|utxo_snapshot)|test/fuzz/(kitchen_sink|minisketch|parse_univalue)|clientversion|core_io|rest|signet|init)\.cpp'
+  FILES_WITH_ENFORCED_IWYU='/src/((bench|common|consensus|crypto|index|init|kernel|primitives|rpc|script|univalue/(lib|test)|util|zmq)/.*|node/(block_template_manager|blockstorage|interfaces|miner|mining_args|utxo_snapshot)|test/fuzz/(kitchen_sink|minisketch|parse_univalue)|clientversion|core_io|rest|signet|init)\.cpp'
   jq --arg patterns "$FILES_WITH_ENFORCED_IWYU" 'map(select(.file | test($patterns)))' "${BASE_BUILD_DIR}/compile_commands.json" > "${BASE_BUILD_DIR}/compile_commands_iwyu_errors.json"
   jq --arg patterns "$FILES_WITH_ENFORCED_IWYU" 'map(select(.file | test($patterns) | not))' "${BASE_BUILD_DIR}/compile_commands.json" > "${BASE_BUILD_DIR}/compile_commands_iwyu_warnings.json"
 

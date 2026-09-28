@@ -56,6 +56,7 @@ class WalletTaprootTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
         self.setup_clean_chain = True
+        self.wallet_names = []
         base = ["-addresstype=bech32"]
         self.extra_args = [base + ['-keypool=100'], base + ['-keypool=100']]
 
@@ -64,9 +65,6 @@ class WalletTaprootTest(BitcoinTestFramework):
 
     def setup_network(self):
         self.setup_nodes()
-
-    def init_wallet(self, *, node):
-        pass
 
     @staticmethod
     def make_desc(pattern, privmap, keys, pub_only = False):

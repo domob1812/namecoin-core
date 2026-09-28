@@ -12,6 +12,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,13 +20,14 @@
 #include <addresstype.h>
 #include <blockfilter.h>
 #include <chain.h>
+#include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <index/blockfilterindex.h>
 #include <interfaces/chain.h>
 #include <key_io.h>
-#include <logging.h>
 #include <node/blockstorage.h>
 #include <node/types.h>
+#include <policy/feerate.h>
 #include <policy/policy.h>
 #include <rpc/server.h>
 #include <script/descriptor.h>
@@ -34,7 +36,10 @@
 #include <test/util/logging.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
+#include <test/util/time.h>
 #include <util/byte_units.h>
+#include <util/check.h>
+#include <util/strencodings.h>
 #include <util/translation.h>
 #include <validation.h>
 #include <validationinterface.h>
@@ -47,7 +52,6 @@
 #include <wallet/test/wallet_test_fixture.h>
 
 #include <boost/test/unit_test.hpp>
-#include <univalue.h>
 
 using node::MAX_BLOCKFILE_SIZE;
 
@@ -72,6 +76,18 @@ static CMutableTransaction TestSimpleSpend(const CTransaction& from, uint32_t in
     std::map<int, bilingual_str> input_errors;
     BOOST_CHECK(SignTransaction(mtx, &keystore, coins, {.sighash_type = SIGHASH_ALL}, input_errors));
     return mtx;
+}
+
+static bool BroadcastTestSimpleSpend(interfaces::Chain& chain, ChainstateManager& chainman, const CMutableTransaction& tx, std::string& error)
+{
+    const auto tx_ref{MakeTransactionRef(tx)};
+    const auto tx_sigops = WITH_LOCK(::cs_main, return GetTransactionSigOpCost(
+                                                    *tx_ref, chainman.ActiveChainstate().CoinsTip(), STANDARD_SCRIPT_VERIFY_FLAGS));
+    const auto tx_vsize{GetVirtualTransactionSize(*tx_ref, tx_sigops, nBytesPerSigOp)};
+    const auto tx_feerate{CFeeRate{DEFAULT_TRANSACTION_MAXFEE, static_cast<int32_t>(tx_vsize)}};
+    // TestSimpleSpend pays a high fee; use a limit just above its feerate.
+    const auto tx_feerate_limit{CFeeRate{tx_feerate.GetFeePerK() + 1}};
+    return chain.broadcastTransaction(tx_ref, DEFAULT_TRANSACTION_MAXFEE, tx_feerate_limit, node::TxBroadcast::MEMPOOL_NO_BROADCAST, error);
 }
 
 static void AddKey(CWallet& wallet, const CKey& key)
@@ -124,6 +140,182 @@ BOOST_AUTO_TEST_CASE(reject_invalid_descriptor_ranges)
         BOOST_CHECK(results.front().error->wallet_error.code == WalletErrorCode::InvalidParameter);
         BOOST_CHECK_EQUAL(results.front().error->wallet_error.message.original, expected_error);
         BOOST_CHECK(!results.front().error->is_general_error);
+    }
+}
+
+namespace {
+struct EncryptionFailureSetup : TestingSetup {
+    WalletContext context;
+    FaultInjectingDatabase* fail_db{nullptr};
+    std::shared_ptr<CWallet> wallet;
+    FakeNodeClock clock; // Frozen time makes EncryptMasterKey use the default KDF iteration count
+
+    EncryptionFailureSetup()
+    {
+        context.args = &m_args;
+        m_args.ForceSetArg("-keypool", "1"); // Failure injection does not depend on keypool depth
+        context.chain = m_node.chain.get();
+        RecreateWallet(WALLET_FLAG_DESCRIPTORS);
+    }
+
+    void RecreateWallet(uint64_t create_flags)
+    {
+        if (wallet) TestUnloadWallet(std::move(wallet));
+        auto database{std::make_unique<FaultInjectingDatabase>()};
+        fail_db = database.get();
+        wallet = TestCreateWallet(std::move(database), context, create_flags);
+    }
+
+    ~EncryptionFailureSetup() { TestUnloadWallet(std::move(wallet)); }
+};
+} // namespace
+
+BOOST_FIXTURE_TEST_CASE(encrypt_wallet_master_key_write_failure, EncryptionFailureSetup)
+{
+    AddKey(*wallet, GenerateRandomKey());
+
+    fail_db->FailNextWrite(DBKeys::MASTER_KEY); // The injected failure affects only the first attempt
+    for (bool success : {false, true}) {
+        BOOST_CHECK_EQUAL(wallet->EncryptWallet("passphrase"), success);
+        BOOST_CHECK_EQUAL(wallet->HasEncryptionKeys(), success);
+        BOOST_CHECK_EQUAL(wallet->HaveCryptedKeys(), success);
+        BOOST_CHECK_EQUAL(fail_db->HasRecordType(DBKeys::MASTER_KEY), success);
+        BOOST_CHECK_EQUAL(fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORKEY), !success);
+        BOOST_CHECK_EQUAL(fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORCKEY), success);
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(encrypt_wallet_commit_failure, EncryptionFailureSetup)
+{
+    AddKey(*wallet, GenerateRandomKey());
+
+    fail_db->FailNextCommit(); // The injected failure affects only the first attempt
+    test_only_CheckFailuresAreExceptionsNotAborts mock_checks; // Keep abort regressions observable
+    BOOST_CHECK(!wallet->EncryptWallet("passphrase"));
+    BOOST_CHECK(!wallet->HasEncryptionKeys());
+    BOOST_CHECK(!wallet->HaveCryptedKeys());
+    BOOST_CHECK(!fail_db->HasRecordType(DBKeys::MASTER_KEY));
+    BOOST_CHECK( fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORKEY));
+    BOOST_CHECK(!fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORCKEY));
+    BOOST_CHECK( wallet->EncryptWallet("passphrase"));
+    BOOST_CHECK( wallet->HasEncryptionKeys());
+    BOOST_CHECK( wallet->HaveCryptedKeys());
+    BOOST_CHECK( fail_db->HasRecordType(DBKeys::MASTER_KEY));
+    BOOST_CHECK(!fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORKEY));
+    BOOST_CHECK( fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORCKEY));
+}
+
+BOOST_FIXTURE_TEST_CASE(encrypt_wallet_descriptor_key_write_failure, EncryptionFailureSetup)
+{
+    AddKey(*wallet, GenerateRandomKey());
+
+    fail_db->FailNextWrite(DBKeys::WALLETDESCRIPTORCKEY, /*match_skip_count=*/1); // Only one write fails
+    for (bool success : {false, true}) {
+        BOOST_CHECK_EQUAL(wallet->EncryptWallet("passphrase"), success);
+        BOOST_CHECK_EQUAL(wallet->HasEncryptionKeys(), success);
+        BOOST_CHECK_EQUAL(wallet->HaveCryptedKeys(), success);
+        BOOST_CHECK_EQUAL(fail_db->HasRecordType(DBKeys::MASTER_KEY), success);
+        BOOST_CHECK_EQUAL(fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORKEY), !success);
+        BOOST_CHECK_EQUAL(fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORCKEY), success);
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(encrypt_wallet_descriptor_key_erase_failure, EncryptionFailureSetup)
+{
+    AddKey(*wallet, GenerateRandomKey());
+
+    fail_db->FailNextErase(DBKeys::WALLETDESCRIPTORKEY); // Only one erase fails
+    for (bool success : {false, true}) {
+        BOOST_CHECK_EQUAL(wallet->EncryptWallet("passphrase"), success);
+        BOOST_CHECK_EQUAL(wallet->HasEncryptionKeys(), success);
+        BOOST_CHECK_EQUAL(wallet->HaveCryptedKeys(), success);
+        BOOST_CHECK_EQUAL(fail_db->HasRecordType(DBKeys::MASTER_KEY), success);
+        BOOST_CHECK_EQUAL(fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORKEY), !success);
+        BOOST_CHECK_EQUAL(fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORCKEY), success);
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(change_passphrase_master_key_write_failure, EncryptionFailureSetup)
+{
+    AddKey(*wallet, GenerateRandomKey());
+    BOOST_REQUIRE(wallet->EncryptWallet("old_pass"));
+    BOOST_REQUIRE(wallet->IsLocked());
+    const auto master_key_record{fail_db->GetRecordValue(DBKeys::MASTER_KEY)};
+    BOOST_REQUIRE(master_key_record);
+
+    fail_db->FailNextWrite(DBKeys::MASTER_KEY); // The injected failure affects only the first attempt
+    const auto changed{wallet->ChangeWalletPassphrase("old_pass", "new_pass")};
+    BOOST_REQUIRE(!changed);
+    BOOST_CHECK_EQUAL(changed.error().code, WalletErrorCode::GenericError);
+    BOOST_CHECK_EQUAL(changed.error().message.original, "Error: Writing the new encryption key to the wallet database failed");
+    BOOST_CHECK( wallet->IsLocked());
+    BOOST_CHECK( fail_db->GetRecordValue(DBKeys::MASTER_KEY) == master_key_record);
+    BOOST_CHECK( wallet->Unlock("old_pass"));
+    wallet->Lock();
+    BOOST_CHECK(!wallet->Unlock("new_pass"));
+    BOOST_CHECK( wallet->ChangeWalletPassphrase("old_pass", "new_pass"));
+    BOOST_CHECK( wallet->IsLocked());
+    BOOST_CHECK( fail_db->GetRecordValue(DBKeys::MASTER_KEY) != master_key_record);
+    BOOST_CHECK( wallet->Unlock("new_pass"));
+    wallet->Lock();
+    const auto unlocked{wallet->Unlock("old_pass")};
+    BOOST_REQUIRE(!unlocked);
+    BOOST_CHECK_EQUAL(unlocked.error().code, WalletErrorCode::PassphraseIncorrect);
+    BOOST_CHECK_EQUAL(unlocked.error().message.original, "Error: The wallet passphrase entered was incorrect.");
+}
+
+BOOST_FIXTURE_TEST_CASE(add_encrypted_descriptor_key_without_plaintext_record, EncryptionFailureSetup)
+{
+    RecreateWallet(WALLET_FLAG_DESCRIPTORS | WALLET_FLAG_BLANK_WALLET);
+    BOOST_REQUIRE(wallet->EncryptWallet("passphrase"));
+    BOOST_REQUIRE(wallet->Unlock("passphrase"));
+
+    AddKey(*wallet, GenerateRandomKey());
+    BOOST_CHECK( wallet->HaveCryptedKeys());
+    BOOST_CHECK( fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORCKEY));
+    BOOST_CHECK(!fail_db->HasRecordType(DBKeys::WALLETDESCRIPTORKEY));
+}
+
+BOOST_FIXTURE_TEST_CASE(add_descriptor_key_database_failure, EncryptionFailureSetup)
+{
+    enum class Failure { PlaintextWrite, EncryptedWrite, Erase, Commit };
+    for (auto failure : {Failure::PlaintextWrite, Failure::EncryptedWrite, Failure::Erase, Failure::Commit}) {
+        const bool encrypted{failure != Failure::PlaintextWrite};
+        RecreateWallet(WALLET_FLAG_DESCRIPTORS | WALLET_FLAG_BLANK_WALLET);
+        CKey key{GenerateRandomKey()};
+        // Add a public descriptor first so the private-key update exercises an existing live manager
+        auto* spkm{CreateDescriptor(*wallet, strprintf("combo(%s)", HexStr(key.GetPubKey())), /*success=*/true)};
+        WalletDescriptor descriptor{WITH_LOCK(spkm->cs_desc_man, return spkm->GetWalletDescriptor())};
+        FlatSigningProvider provider;
+        provider.keys.emplace(key.GetPubKey().GetID(), key);
+        auto add_key{[&] {
+            LOCK(wallet->cs_wallet);
+            return wallet->AddWalletDescriptor(descriptor, provider, /*label=*/"", /*internal=*/false);
+        }};
+        auto has_key{[&] {
+            LOCK(wallet->cs_wallet);
+            return wallet->GetKey(key.GetPubKey().GetID()).has_value();
+        }};
+        if (encrypted) {
+            BOOST_REQUIRE(wallet->EncryptWallet("passphrase"));
+            BOOST_REQUIRE(wallet->Unlock("passphrase"));
+        }
+        BOOST_CHECK(!has_key());
+
+        const std::string record_type{encrypted ? DBKeys::WALLETDESCRIPTORCKEY : DBKeys::WALLETDESCRIPTORKEY};
+        if (failure == Failure::Erase) {
+            fail_db->FailNextErase(DBKeys::WALLETDESCRIPTORKEY);
+        } else if (failure == Failure::Commit) {
+            fail_db->FailNextCommit();
+        } else {
+            fail_db->FailNextWrite(record_type);
+        }
+        BOOST_CHECK_EXCEPTION((void)add_key(), std::runtime_error, HasReason{"UpdateWithSigningProvider: writing descriptor private key failed"});
+        BOOST_CHECK(!has_key());
+        BOOST_CHECK(!fail_db->HasRecordType(record_type));
+        BOOST_CHECK( add_key());
+        BOOST_CHECK( has_key());
+        BOOST_CHECK( fail_db->HasRecordType(record_type));
     }
 }
 
@@ -1114,8 +1306,7 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
     auto block_tx = TestSimpleSpend(*m_coinbase_txns[0], 0, coinbaseKey, GetScriptForRawPubKey(key.GetPubKey()));
     m_coinbase_txns.push_back(CreateAndProcessBlock({block_tx}, GetScriptForRawPubKey(coinbaseKey.GetPubKey())).vtx[0]);
     auto mempool_tx = TestSimpleSpend(*m_coinbase_txns[1], 0, coinbaseKey, GetScriptForRawPubKey(key.GetPubKey()));
-    BOOST_CHECK(m_node.chain->broadcastTransaction(MakeTransactionRef(mempool_tx), DEFAULT_TRANSACTION_MAXFEE, node::TxBroadcast::MEMPOOL_NO_BROADCAST, error));
-
+    BOOST_CHECK(BroadcastTestSimpleSpend(*m_node.chain, *Assert(m_node.chainman), mempool_tx, error));
 
     // Reload wallet and make sure new transactions are detected despite events
     // being blocked
@@ -1156,7 +1347,7 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
             block_tx = TestSimpleSpend(*m_coinbase_txns[2], 0, coinbaseKey, GetScriptForRawPubKey(key.GetPubKey()));
             m_coinbase_txns.push_back(CreateAndProcessBlock({block_tx}, GetScriptForRawPubKey(coinbaseKey.GetPubKey())).vtx[0]);
             mempool_tx = TestSimpleSpend(*m_coinbase_txns[3], 0, coinbaseKey, GetScriptForRawPubKey(key.GetPubKey()));
-            BOOST_CHECK(m_node.chain->broadcastTransaction(MakeTransactionRef(mempool_tx), DEFAULT_TRANSACTION_MAXFEE, node::TxBroadcast::MEMPOOL_NO_BROADCAST, error));
+            BOOST_CHECK(BroadcastTestSimpleSpend(*m_node.chain, *Assert(m_node.chainman), mempool_tx, error));
             m_node.validation_signals->SyncWithValidationInterfaceQueue();
         });
     wallet = TestLoadWallet(context);

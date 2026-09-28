@@ -234,10 +234,17 @@ bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubk
 
 bool WalletBatch::WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const std::vector<unsigned char>& secret)
 {
-    if (!WriteIC(std::make_pair(DBKeys::WALLETDESCRIPTORCKEY, std::make_pair(desc_id, pubkey)), secret, false)) {
+    const auto descriptor_key{std::make_pair(desc_id, pubkey)};
+    const auto plaintext_key{std::make_pair(DBKeys::WALLETDESCRIPTORKEY, descriptor_key)};
+    const auto encrypted_key{std::make_pair(DBKeys::WALLETDESCRIPTORCKEY, descriptor_key)};
+
+    // Keep the write and erase atomic even when the caller has not started a transaction
+    const bool own_txn{!HasActiveTxn()};
+    if (own_txn && !TxnBegin()) return false;
+    if (!WriteIC(encrypted_key, secret, /*fOverwrite=*/false) || !EraseIC(plaintext_key) || (own_txn && !TxnCommit())) {
+        if (own_txn) TxnAbort();
         return false;
     }
-    EraseIC(std::make_pair(DBKeys::WALLETDESCRIPTORKEY, std::make_pair(desc_id, pubkey)));
     return true;
 }
 
@@ -248,22 +255,22 @@ bool WalletBatch::WriteDescriptor(const uint256& desc_id, const WalletDescriptor
 
 bool WalletBatch::WriteDescriptorDerivedCache(const CExtPubKey& xpub, const uint256& desc_id, uint32_t key_exp_index, uint32_t der_index)
 {
-    std::vector<unsigned char> ser_xpub(BIP32_EXTKEY_SIZE);
-    xpub.Encode(ser_xpub.data());
+    std::vector<unsigned char> ser_xpub;
+    VectorWriter{ser_xpub, 0, xpub};
     return WriteIC(std::make_pair(std::make_pair(DBKeys::WALLETDESCRIPTORCACHE, desc_id), std::make_pair(key_exp_index, der_index)), ser_xpub);
 }
 
 bool WalletBatch::WriteDescriptorParentCache(const CExtPubKey& xpub, const uint256& desc_id, uint32_t key_exp_index)
 {
-    std::vector<unsigned char> ser_xpub(BIP32_EXTKEY_SIZE);
-    xpub.Encode(ser_xpub.data());
+    std::vector<unsigned char> ser_xpub;
+    VectorWriter{ser_xpub, 0, xpub};
     return WriteIC(std::make_pair(std::make_pair(DBKeys::WALLETDESCRIPTORCACHE, desc_id), key_exp_index), ser_xpub);
 }
 
 bool WalletBatch::WriteDescriptorLastHardenedCache(const CExtPubKey& xpub, const uint256& desc_id, uint32_t key_exp_index)
 {
-    std::vector<unsigned char> ser_xpub(BIP32_EXTKEY_SIZE);
-    xpub.Encode(ser_xpub.data());
+    std::vector<unsigned char> ser_xpub;
+    VectorWriter{ser_xpub, 0, xpub};
     return WriteIC(std::make_pair(std::make_pair(DBKeys::WALLETDESCRIPTORLHCACHE, desc_id), key_exp_index), ser_xpub);
 }
 
@@ -804,10 +811,13 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
             }
             catch (...) {}
 
-            std::vector<unsigned char> ser_xpub(BIP32_EXTKEY_SIZE);
-            value >> ser_xpub;
+            // The xpub is stored as a length-prefixed byte vector
+            if (ReadCompactSize(value) != BIP32_EXTKEY_SIZE) {
+                err = "Error reading wallet database: descriptor cache xpub has invalid size";
+                return DBErrors::CORRUPT;
+            }
             CExtPubKey xpub;
-            xpub.Decode(ser_xpub.data());
+            value >> xpub;
             if (parent) {
                 cache.CacheParentExtPubKey(key_exp_index, xpub);
             } else {
@@ -827,10 +837,13 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
             assert(desc_id == id);
             key >> key_exp_index;
 
-            std::vector<unsigned char> ser_xpub(BIP32_EXTKEY_SIZE);
-            value >> ser_xpub;
+            // The xpub is stored as a length-prefixed byte vector
+            if (ReadCompactSize(value) != BIP32_EXTKEY_SIZE) {
+                err = "Error reading wallet database: descriptor last hardened cache xpub has invalid size";
+                return DBErrors::CORRUPT;
+            }
             CExtPubKey xpub;
-            xpub.Decode(ser_xpub.data());
+            value >> xpub;
             cache.CacheLastHardenedExtPubKey(key_exp_index, xpub);
             return DBErrors::LOAD_OK;
         });
@@ -1320,10 +1333,10 @@ bool WalletBatch::TxnAbort()
     return res;
 }
 
-void WalletBatch::RegisterTxnListener(const DbTxnListener& l)
+void WalletBatch::RegisterTxnListener(DbTxnListener l)
 {
     assert(m_batch->HasActiveTxn());
-    m_txn_listeners.emplace_back(l);
+    m_txn_listeners.emplace_back(std::move(l));
 }
 
 std::unique_ptr<WalletDatabase> MakeDatabase(const fs::path& path, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error)

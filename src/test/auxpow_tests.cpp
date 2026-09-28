@@ -7,6 +7,7 @@
 #include <chainparams.h>
 #include <coins.h>
 #include <consensus/merkle.h>
+#include <node/block_template_manager.h>
 #include <validation.h>
 #include <pow.h>
 #include <primitives/block.h>
@@ -533,7 +534,8 @@ public:
   const CBlock*
   getCurrentBlock (const CScript& scriptPubKey, uint256& target)
   {
-    return AuxpowMiner::getCurrentBlock (*node.chainman, *node.mining,
+    return AuxpowMiner::getCurrentBlock (*node.chainman,
+                                         *Assert (node.block_template_manager),
                                          *node.mempool,
                                          scriptPubKey, target);
   }

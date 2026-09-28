@@ -17,7 +17,6 @@
 #include <dbwrapper.h>
 #include <init.h>
 #include <interfaces/chain.h>
-#include <interfaces/mining.h>
 #include <kernel/caches.h>
 #include <kernel/context.h>
 #include <kernel/mempool_entry.h>
@@ -27,6 +26,7 @@
 #include <net_processing.h>
 #include <netbase.h>
 #include <netgroup.h>
+#include <node/block_template_manager.h>
 #include <node/blockstorage.h>
 #include <node/chainstate.h>
 #include <node/context.h>
@@ -331,14 +331,22 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, TestOpts opts)
         m_node.chainman = std::make_unique<ChainstateManager>(*Assert(m_node.shutdown_signal), chainman_opts, blockman_opts);
     };
     m_make_chainman();
-    m_node.mining = interfaces::MakeMining(m_node, /*wait_loaded=*/false);
+    CreateBlockTemplateManager();
+}
+
+void ChainTestingSetup::CreateBlockTemplateManager()
+{
+    auto mining_args{node::ReadMiningArgs(*Assert(m_node.args))};
+    Assert(mining_args);
+    Assert(!m_node.block_template_manager);
+    m_node.block_template_manager = std::make_unique<node::BlockTemplateManager>(*m_node.mempool, *m_node.chainman, *Assert(m_node.notifications), std::move(*mining_args));
 }
 
 ChainTestingSetup::~ChainTestingSetup()
 {
     if (m_node.scheduler) m_node.scheduler->stop();
     if (m_node.validation_signals) m_node.validation_signals->FlushBackgroundCallbacks();
-    m_node.mining.reset();
+    m_node.block_template_manager.reset();
     m_node.connman.reset();
     m_node.banman.reset();
     m_node.addrman.reset();
@@ -397,9 +405,6 @@ TestingSetup::TestingSetup(
                                                m_node.args->GetIntArg("-checkaddrman", 0));
     m_node.banman = std::make_unique<BanMan>(m_args.GetDataDirBase() / "banlist", nullptr, DEFAULT_MISBEHAVING_BANTIME);
     m_node.connman = std::make_unique<ConnmanTestMsg>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman, Params()); // Deterministic randomness for tests.
-    auto mining_args{node::ReadMiningArgs(*m_node.args)};
-    Assert(mining_args);
-    m_node.mining_args = std::move(*mining_args);
     PeerManager::Options peerman_opts;
     ApplyArgsManOptions(*m_node.args, peerman_opts);
     peerman_opts.deterministic_rng = true;
@@ -450,13 +455,13 @@ CBlock TestChain100Setup::CreateBlock(
     const std::vector<CMutableTransaction>& txns,
     const CScript& scriptPubKey)
 {
-    auto mining{interfaces::MakeMining(m_node)};
-    auto block_template{mining->createNewBlock({
+    auto& block_template_manager{*Assert(m_node.block_template_manager)};
+    auto block_template{block_template_manager.CreateNewTemplate({
         .use_mempool = false,
         .coinbase_output_script = scriptPubKey,
-    }, /*cooldown=*/false)};
+    })};
     Assert(block_template);
-    CBlock block{block_template->getBlock()};
+    CBlock block{block_template->block};
 
     Assert(block.vtx.size() == 1);
     for (const CMutableTransaction& tx : txns) {

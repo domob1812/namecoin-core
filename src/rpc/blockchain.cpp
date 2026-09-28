@@ -25,12 +25,12 @@
 #include <index/base.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
-#include <interfaces/mining.h>
 #include <interfaces/types.h>
 #include <kernel/coinstats.h>
 #include <logging/timer.h>
 #include <net.h>
 #include <net_processing.h>
+#include <node/block_template_manager.h>
 #include <node/blockstorage.h>
 #include <node/context.h>
 #include <node/utxo_snapshot.h>
@@ -101,7 +101,6 @@ using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
 
 using interfaces::BlockRef;
-using interfaces::Mining;
 using node::BlockManager;
 using node::NodeContext;
 using node::SnapshotMetadata;
@@ -450,15 +449,15 @@ static RPCMethod waitfornewblock()
     if (timeout < 0) throw JSONRPCError(RPC_MISC_ERROR, "Negative timeout");
 
     NodeContext& node = EnsureAnyNodeContext(request.context);
-    Mining& miner = EnsureMining(node);
+    node::BlockTemplateManager& block_template_manager = EnsureBlockTemplateManager(node);
 
-    // If the caller provided a current_tip value, pass it to waitTipChanged().
+    // If the caller provided a current_tip value, pass it to WaitTipChanged().
     //
-    // If the caller did not provide a current tip hash, call getTip() to get
+    // If the caller did not provide a current tip hash, call GetTip() to get
     // one and wait for the tip to be different from this value. This mode is
     // less reliable because if the tip changed between waitfornewblock calls,
     // it will need to change a second time before this call returns.
-    BlockRef current_block{CHECK_NONFATAL(miner.getTip()).value()};
+    BlockRef current_block{CHECK_NONFATAL(block_template_manager.GetTip()).value()};
 
     uint256 tip_hash{request.params[1].isNull()
         ? current_block.hash
@@ -466,8 +465,8 @@ static RPCMethod waitfornewblock()
 
     // If the user provided an invalid current_tip then this call immediately
     // returns the current tip.
-    std::optional<BlockRef> block = timeout ? miner.waitTipChanged(tip_hash, std::chrono::milliseconds(timeout)) :
-                                              miner.waitTipChanged(tip_hash);
+    std::optional<BlockRef> block = timeout ? block_template_manager.WaitTipChanged(tip_hash, std::chrono::milliseconds(timeout)) :
+                                              block_template_manager.WaitTipChanged(tip_hash);
 
     // Return current block upon shutdown
     if (block) current_block = *block;
@@ -512,10 +511,10 @@ static RPCMethod waitforblock()
     if (timeout < 0) throw JSONRPCError(RPC_MISC_ERROR, "Negative timeout");
 
     NodeContext& node = EnsureAnyNodeContext(request.context);
-    Mining& miner = EnsureMining(node);
+    node::BlockTemplateManager& block_template_manager = EnsureBlockTemplateManager(node);
 
     // Abort if RPC came out of warmup too early
-    BlockRef current_block{CHECK_NONFATAL(miner.getTip()).value()};
+    BlockRef current_block{CHECK_NONFATAL(block_template_manager.GetTip()).value()};
 
     const auto deadline{std::chrono::steady_clock::now() + 1ms * timeout};
     while (current_block.hash != hash) {
@@ -524,9 +523,9 @@ static RPCMethod waitforblock()
             auto now{std::chrono::steady_clock::now()};
             if (now >= deadline) break;
             const MillisecondsDouble remaining{deadline - now};
-            block = miner.waitTipChanged(current_block.hash, remaining);
+            block = block_template_manager.WaitTipChanged(current_block.hash, remaining);
         } else {
-            block = miner.waitTipChanged(current_block.hash);
+            block = block_template_manager.WaitTipChanged(current_block.hash);
         }
         // Return current block upon shutdown
         if (!block) break;
@@ -574,10 +573,10 @@ static RPCMethod waitforblockheight()
     if (timeout < 0) throw JSONRPCError(RPC_MISC_ERROR, "Negative timeout");
 
     NodeContext& node = EnsureAnyNodeContext(request.context);
-    Mining& miner = EnsureMining(node);
+    node::BlockTemplateManager& block_template_manager = EnsureBlockTemplateManager(node);
 
     // Abort if RPC came out of warmup too early
-    BlockRef current_block{CHECK_NONFATAL(miner.getTip()).value()};
+    BlockRef current_block{CHECK_NONFATAL(block_template_manager.GetTip()).value()};
 
     const auto deadline{std::chrono::steady_clock::now() + 1ms * timeout};
 
@@ -587,9 +586,9 @@ static RPCMethod waitforblockheight()
             auto now{std::chrono::steady_clock::now()};
             if (now >= deadline) break;
             const MillisecondsDouble remaining{deadline - now};
-            block = miner.waitTipChanged(current_block.hash, remaining);
+            block = block_template_manager.WaitTipChanged(current_block.hash, remaining);
         } else {
-            block = miner.waitTipChanged(current_block.hash);
+            block = block_template_manager.WaitTipChanged(current_block.hash);
         }
         // Return current block on shutdown
         if (!block) break;
@@ -1202,7 +1201,7 @@ static RPCMethod gettxoutsetinfo()
                     HelpExampleCli("gettxoutsetinfo", "") +
                     HelpExampleCli("gettxoutsetinfo", R"("none")") +
                     HelpExampleCli("gettxoutsetinfo", R"("none" 1000)") +
-                    HelpExampleCli("gettxoutsetinfo", R"("none" '"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09"')") +
+                    HelpExampleCli("gettxoutsetinfo", R"("none" 00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09)") +
                     HelpExampleCli("-named gettxoutsetinfo", R"(hash_type='muhash' use_index='false')") +
                     HelpExampleRpc("gettxoutsetinfo", "") +
                     HelpExampleRpc("gettxoutsetinfo", R"("none")") +
@@ -2164,7 +2163,7 @@ static RPCMethod getblockstats()
                 {RPCResult::Type::NUM, "utxo_size_inc_actual", /*optional=*/true, "The increase/decrease in size for the utxo index, not counting unspendables"},
             }},
                 RPCExamples{
-                    HelpExampleCli("getblockstats", R"('"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09"' '["minfeerate","avgfeerate"]')") +
+                    HelpExampleCli("getblockstats", R"(00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09 '["minfeerate","avgfeerate"]')") +
                     HelpExampleCli("getblockstats", R"(1000 '["minfeerate","avgfeerate"]')") +
                     HelpExampleRpc("getblockstats", R"("00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09", ["minfeerate","avgfeerate"])") +
                     HelpExampleRpc("getblockstats", R"(1000, ["minfeerate","avgfeerate"])")
