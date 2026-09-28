@@ -152,10 +152,10 @@ public:
     }
     bool isCrypted() override { return m_wallet->HasEncryptionKeys(); }
     bool lock() override { return m_wallet->Lock(); }
-    bool unlock(const SecureString& wallet_passphrase) override { return m_wallet->Unlock(wallet_passphrase); }
+    util::Expected<void, WalletError> unlock(const SecureString& wallet_passphrase) override { return m_wallet->Unlock(wallet_passphrase); }
     bool isLocked() override { return m_wallet->IsLocked(); }
-    bool changeWalletPassphrase(const SecureString& old_wallet_passphrase,
-        const SecureString& new_wallet_passphrase) override
+    util::Expected<void, WalletError> changeWalletPassphrase(const SecureString& old_wallet_passphrase,
+                                                             const SecureString& new_wallet_passphrase) override
     {
         return m_wallet->ChangeWalletPassphrase(old_wallet_passphrase, new_wallet_passphrase);
     }
@@ -505,7 +505,7 @@ public:
         return spk_man != nullptr;
     }
     OutputType getDefaultAddressType() override { return m_wallet->m_default_address_type; }
-    CAmount getDefaultMaxTxFee() override { return m_wallet->m_default_max_tx_fee; }
+    CAmount getMaxTxFee() override { return m_wallet->m_max_tx_fee; }
     void remove() override
     {
         RemoveWallet(m_context, m_wallet, /*load_on_start=*/false);

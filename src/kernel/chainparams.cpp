@@ -222,6 +222,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x88, 0xAD, 0xE4};
 
         bech32_hrp = "nc";
+        silent_payments_hrp = "nsp";
 
         vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_main), std::end(chainparams_seed_main));
 
@@ -375,6 +376,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         bech32_hrp = "tn";
+        silent_payments_hrp = "ntsp";
 
         // FIXME: Namecoin has no fixed seeds for testnet, so that the line
         // below errors out.  Use it once we have testnet seeds.
@@ -499,6 +501,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         bech32_hrp = "tb";
+        silent_payments_hrp = "tsp";
 
         vFixedSeeds = std::vector<uint8_t>(std::begin(chainparams_seed_testnet4), std::end(chainparams_seed_testnet4));
 
@@ -673,6 +676,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         bech32_hrp = "tb";
+        silent_payments_hrp = "tsp";
 
         fDefaultConsistencyChecks = false;
         m_is_mockable_chain = false;
@@ -801,6 +805,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         bech32_hrp = "ncrt";
+        silent_payments_hrp = "nsprt";
 
         // Copied from Testnet4.
         m_headers_sync_params = HeadersSyncParams{

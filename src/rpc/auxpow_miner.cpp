@@ -9,7 +9,9 @@
 #include <chainparams.h>
 #include <consensus/merkle.h>
 #include <net.h>
+#include <node/block_template_manager.h>
 #include <node/context.h>
+#include <node/mining_types.h>
 #include <rpc/blockchain.h>
 #include <rpc/protocol.h>
 #include <rpc/request.h>
@@ -22,8 +24,6 @@
 
 namespace
 {
-
-using interfaces::Mining;
 
 void auxMiningCheck(const node::NodeContext& node)
 {
@@ -52,7 +52,8 @@ void auxMiningCheck(const node::NodeContext& node)
 }  // anonymous namespace
 
 const CBlock*
-AuxpowMiner::getCurrentBlock (ChainstateManager& chainman, Mining& miner,
+AuxpowMiner::getCurrentBlock (ChainstateManager& chainman,
+                              node::BlockTemplateManager& block_template_manager,
                               const CTxMemPool& mempool,
                               const CScript& scriptPubKey, uint256& target)
 {
@@ -82,11 +83,11 @@ AuxpowMiner::getCurrentBlock (ChainstateManager& chainman, Mining& miner,
         /* Create new block with nonce = 0 and extraNonce = 1.  */
         node::BlockCreateOptions opt;
         opt.coinbase_output_script = scriptPubKey;
-        std::unique_ptr<interfaces::BlockTemplate> newTemplate
-            = miner.createNewBlock (opt);
+        std::unique_ptr<node::CBlockTemplate> newTemplate
+            = block_template_manager.CreateNewTemplate (opt);
         if (newTemplate == nullptr)
           throw JSONRPCError (RPC_OUT_OF_MEMORY, "out of memory");
-        blocks.push_back (std::make_unique<CBlock> (newTemplate->getBlock ()));
+        blocks.push_back (std::make_unique<CBlock> (newTemplate->block));
         CBlock& newBlock = *blocks.back ();
 
         /* Update state only when CreateNewBlock succeeded.  */
@@ -148,11 +149,11 @@ AuxpowMiner::createAuxBlock (const JSONRPCRequest& request,
   auxMiningCheck (node);
   const auto& mempool = EnsureMemPool (node);
   auto& chainman = EnsureChainman (node);
-  auto& mining = EnsureMining (node);
+  auto& block_template_manager = EnsureBlockTemplateManager (node);
 
   uint256 target;
-  const CBlock* pblock = getCurrentBlock (chainman, mining, mempool,
-                                          scriptPubKey, target);
+  const CBlock* pblock = getCurrentBlock (chainman, block_template_manager,
+                                          mempool, scriptPubKey, target);
 
   UniValue result(UniValue::VOBJ);
   result.pushKV ("hash", pblock->GetHash ().GetHex ());

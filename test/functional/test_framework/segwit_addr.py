@@ -9,6 +9,8 @@ from enum import Enum
 CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 BECH32_CONST = 1
 BECH32M_CONST = 0x2bc830a3
+BECH32_MAX_LENGTH = 90
+SILENT_PAYMENTS_MAX_LENGTH = 1023
 
 class Encoding(Enum):
     """Enumeration type to list the various supported encodings."""
@@ -57,14 +59,18 @@ def bech32_encode(encoding, hrp, data):
     return hrp + '1' + ''.join([CHARSET[d] for d in combined])
 
 
-def bech32_decode(bech):
-    """Validate a Bech32/Bech32m string, and determine HRP and data."""
+def bech32_decode(bech, max_length=BECH32_MAX_LENGTH):
+    """Validate a Bech32/Bech32m string, and determine HRP and data.
+
+    max_length defaults to the BIP173/BIP350 limit. Silent payment addresses
+    (BIP352) use a longer limit; pass SILENT_PAYMENTS_MAX_LENGTH for those.
+    """
     if ((any(ord(x) < 33 or ord(x) > 126 for x in bech)) or
             (bech.lower() != bech and bech.upper() != bech)):
         return (None, None, None)
     bech = bech.lower()
     pos = bech.rfind('1')
-    if pos < 1 or pos + 7 > len(bech) or len(bech) > 90:
+    if pos < 1 or pos + 7 > len(bech) or len(bech) > max_length:
         return (None, None, None)
     if not all(x in CHARSET for x in bech[pos+1:]):
         return (None, None, None)

@@ -31,6 +31,15 @@ else:
   hrp = "nc"
 
 enc, oldHrp, data = segwit_addr.bech32_decode (addr)
+if enc is None:
+  # Silent payment addresses (BIP352) exceed the 90-character limit of
+  # segwit addresses; retry with their longer limit.
+  enc, oldHrp, data = segwit_addr.bech32_decode (
+      addr, max_length=segwit_addr.SILENT_PAYMENTS_MAX_LENGTH)
+if enc is None:
+  print ("Error: invalid Bech32/Bech32m address: %s" % addr)
+  sys.exit (1)
+
 print ("Encoding %s, old HRP: %s" % (enc, oldHrp))
 newAddr = segwit_addr.bech32_encode (enc, hrp, data)
 print (newAddr)

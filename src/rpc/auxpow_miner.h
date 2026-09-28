@@ -5,7 +5,6 @@
 #ifndef BITCOIN_RPC_AUXPOW_MINER_H
 #define BITCOIN_RPC_AUXPOW_MINER_H
 
-#include <interfaces/mining.h>
 #include <node/miner.h>
 #include <rpc/request.h>
 #include <script/script.h>
@@ -20,6 +19,10 @@
 #include <vector>
 
 class ChainstateManager;
+
+namespace node {
+class BlockTemplateManager;
+} // namespace node
 
 namespace auxpow_tests
 {
@@ -63,7 +66,7 @@ private:
    * fills in the difficulty target value.
    */
   const CBlock* getCurrentBlock (ChainstateManager& chainman,
-                                 interfaces::Mining& miner,
+                                 node::BlockTemplateManager& block_template_manager,
                                  const CTxMemPool& mempool,
                                  const CScript& scriptPubKey, uint256& target)
       EXCLUSIVE_LOCKS_REQUIRED (cs);
