@@ -687,7 +687,7 @@ util::Expected<void, PSBTError> SignPSBTInput(const SigningProvider& provider, P
     // If only the parameter is provided, use it and add it to the PSBT if it is other than SIGHASH_DEFAULT
     // for all input types, and not SIGHASH_ALL for non-taproot input types.
     // If neither are provided, use SIGHASH_DEFAULT if it is taproot, and SIGHASH_ALL for everything else.
-    int sighash{options.sighash_type.value_or(utxo.scriptPubKey.IsPayToTaproot() ? SIGHASH_DEFAULT : SIGHASH_ALL)};
+    int sighash{options.sighash_type.value_or(utxo.scriptPubKey.IsPayToTaproot(/*allowNames=*/true) ? SIGHASH_DEFAULT : SIGHASH_ALL)};
 
     // For user safety, the desired sighash must be provided if the PSBT wants something other than the default set in the previous line.
     if (input.sighash_type && input.sighash_type != sighash) {
@@ -696,7 +696,7 @@ util::Expected<void, PSBTError> SignPSBTInput(const SigningProvider& provider, P
     // Set the PSBT sighash field when sighash is not DEFAULT or ALL
     // DEFAULT is allowed for non-taproot inputs since DEFAULT may be passed for them (e.g. the psbt being signed also has taproot inputs)
     // Note that signing already aliases DEFAULT to ALL for non-taproot inputs.
-    if (utxo.scriptPubKey.IsPayToTaproot() ? sighash != SIGHASH_DEFAULT :
+    if (utxo.scriptPubKey.IsPayToTaproot(/*allowNames=*/true) ? sighash != SIGHASH_DEFAULT :
                                             (sighash != SIGHASH_DEFAULT && sighash != SIGHASH_ALL)) {
         input.sighash_type = sighash;
     }
