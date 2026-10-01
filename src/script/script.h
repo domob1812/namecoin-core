@@ -557,7 +557,7 @@ public:
     bool IsPayToWitnessScriptHash(bool allowNames) const;
     bool IsWitnessProgram(bool allowNames, int& version, std::vector<unsigned char>& program) const;
 
-    bool IsPayToTaproot() const;
+    bool IsPayToTaproot(bool allowNames) const;
 
     /** Called by IsStandardTx and P2SH/BIP62 VerifyScript (which makes it consensus-critical). */
     bool IsPushOnly(const_iterator pc) const;

@@ -1423,12 +1423,12 @@ void PrecomputedTransactionData::Init(const T& txTo, std::vector<CTxOut>&& spent
     bool uses_bip341_taproot = force;
     for (size_t inpos = 0; inpos < txTo.vin.size() && !(uses_bip143_segwit && uses_bip341_taproot); ++inpos) {
         if (!txTo.vin[inpos].scriptWitness.IsNull()) {
-            if (m_spent_outputs_ready && m_spent_outputs[inpos].scriptPubKey.size() == 2 + WITNESS_V1_TAPROOT_SIZE &&
-                m_spent_outputs[inpos].scriptPubKey[0] == OP_1) {
-                // Treat every witness-bearing spend with 34-byte scriptPubKey that starts with OP_1 as a Taproot
-                // spend. This only works if spent_outputs was provided as well, but if it wasn't, actual validation
-                // will fail anyway. Note that this branch may trigger for scriptPubKeys that aren't actually segwit
-                // but in that case validation will fail as SCRIPT_ERR_WITNESS_UNEXPECTED anyway.
+            if (m_spent_outputs_ready && m_spent_outputs[inpos].scriptPubKey.IsPayToTaproot(/*allowNames=*/true)) {
+                // Treat every witness-bearing spend with a Taproot scriptPubKey (possibly prefixed by a name
+                // operation, which IsPayToTaproot strips) as a Taproot spend. This only works if spent_outputs
+                // was provided as well, but if it wasn't, actual validation will fail anyway. Note that this
+                // branch may trigger for scriptPubKeys that aren't actually segwit but in that case validation
+                // will fail as SCRIPT_ERR_WITNESS_UNEXPECTED anyway.
                 uses_bip341_taproot = true;
             } else {
                 // Treat every spend that's not known to native witness v1 as a Witness v0 spend. This branch may

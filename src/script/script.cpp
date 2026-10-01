@@ -249,11 +249,17 @@ bool CScript::IsPayToWitnessScriptHash(bool allowNames) const
     return nameOp.getAddress().IsPayToWitnessScriptHash(false);
 }
 
-bool CScript::IsPayToTaproot() const
+bool CScript::IsPayToTaproot(bool allowNames) const
 {
-    return (this->size() == 34 &&
-            (*this)[0] == OP_1 &&
-            (*this)[1] == 0x20);
+    // Extra-fast test for pay-to-taproot CScripts:
+    if (!allowNames)
+        return (this->size() == 34 &&
+                (*this)[0] == OP_1 &&
+                (*this)[1] == 0x20);
+
+    // Strip off a name prefix if present.
+    const CNameScript nameOp(*this);
+    return nameOp.getAddress().IsPayToTaproot(false);
 }
 
 // A witness program is any valid CScript that consists of a 1-byte push opcode
