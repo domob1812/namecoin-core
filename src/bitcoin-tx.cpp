@@ -14,6 +14,7 @@
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
 #include <core_io.h>
+#include <crypto/sha256.h>
 #include <key_io.h>
 #include <names/encoding.h>
 #include <policy/policy.h>
@@ -951,6 +952,7 @@ static int CommandLineRawTx(int argc, char* argv[])
 MAIN_FUNCTION
 {
     SetupEnvironment();
+    SHA256AutoDetect();
 
     try {
         int ret = AppInitRawTx(argc, argv);
