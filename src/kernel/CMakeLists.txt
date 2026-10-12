@@ -30,7 +30,6 @@ add_library(namecoinkernel
   ../deploymentstatus.cpp
   ../flatfile.cpp
   ../hash.cpp
-  ../logging.cpp
   ../names/common.cpp
   ../names/encoding.cpp
   ../names/main.cpp

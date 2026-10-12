@@ -33,7 +33,7 @@ class PeerNoVerack(P2PInterface):
         # When calling add_p2p_connection, wait_for_verack=False must be set (see
         # comment in add_p2p_connection).
         self.send_version()
-        if message.nVersion >= 70016 and self.wtxidrelay:
+        if message.nVersion >= 110016 and self.wtxidrelay:
             self.send_without_ping(msg_wtxidrelay())
 
 class SendTxrcnclReceiver(P2PInterface):
@@ -91,13 +91,25 @@ class SendTxRcnclTest(BitcoinTestFramework):
         self.log.info('SENDTXRCNCL on pre-WTXID version should not be sent')
         peer = self.nodes[0].add_p2p_connection(SendTxrcnclReceiver(), send_version=False, wait_for_verack=False)
         pre_wtxid_version_msg = msg_version()
-        pre_wtxid_version_msg.nVersion = 70015
+        pre_wtxid_version_msg.nVersion = 110015
         pre_wtxid_version_msg.strSubVer = P2P_SUBVERSION
         pre_wtxid_version_msg.nServices = P2P_SERVICES
         pre_wtxid_version_msg.relay = 1
         peer.send_without_ping(pre_wtxid_version_msg)
         peer.wait_for_verack()
         assert not peer.sendtxrcncl_msg_received
+        self.nodes[0].disconnect_p2ps()
+
+        self.log.info('SENDTXRCNCL on lowest WTXID version should be sent')
+        peer = self.nodes[0].add_p2p_connection(SendTxrcnclReceiver(), send_version=False, wait_for_verack=False)
+        wtxid_version_msg = msg_version()
+        wtxid_version_msg.nVersion = 110016
+        wtxid_version_msg.strSubVer = P2P_SUBVERSION
+        wtxid_version_msg.nServices = P2P_SERVICES
+        wtxid_version_msg.relay = 1
+        peer.send_without_ping(wtxid_version_msg)
+        peer.wait_for_verack()
+        assert peer.sendtxrcncl_msg_received
         self.nodes[0].disconnect_p2ps()
 
         self.log.info('SENDTXRCNCL for fRelay=false should not be sent')
@@ -203,7 +215,7 @@ class SendTxRcnclTest(BitcoinTestFramework):
         self.log.info('unexpected SENDTXRCNCL is ignored')
         peer = self.nodes[0].add_p2p_connection(PeerNoVerack(), send_version=False, wait_for_verack=False)
         old_version_msg = msg_version()
-        old_version_msg.nVersion = 70015
+        old_version_msg.nVersion = 110015
         old_version_msg.strSubVer = P2P_SUBVERSION
         old_version_msg.nServices = P2P_SERVICES
         old_version_msg.relay = 1
