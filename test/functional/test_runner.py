@@ -434,6 +434,7 @@ BASE_SCRIPTS = [
     'name_multisig.py --legacy-wallet --bip16-active',
     'name_multiupdate.py',
     'name_novalue.py',
+    'name_package.py',
     'name_pending.py',
     'name_pending.py --descriptors',
     'name_psbt.py',

@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2024 Daniel Kraft
+// Copyright (c) 2014-2026 Daniel Kraft
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -451,6 +451,40 @@ BOOST_FIXTURE_TEST_CASE (unexpire_conflicts, NameMempoolTestSetup)
 
   BOOST_CHECK (!mempool.registersName (Name ("foo")));
   BOOST_CHECK (mempool.mapTx.empty ());
+}
+
+BOOST_FIXTURE_TEST_CASE (package_conflicts, NameMempoolTestSetup)
+{
+  const auto reg1 = Tx (FirstScript (ADDR, "foo", 'a'));
+  const auto reg2 = Tx (FirstScript (ADDR, "foo", 'b'));
+  const auto reg3 = Tx (FirstScript (ADDR, "bar", 'a'));
+
+  CNameMemPool::PackageChecker regChecker;
+  BOOST_CHECK (regChecker.checkTx (reg1));
+  BOOST_CHECK (!regChecker.checkTx (reg2));
+
+  CNameMemPool::PackageChecker distinctRegChecker;
+  BOOST_CHECK (distinctRegChecker.checkTx (reg1));
+  BOOST_CHECK (distinctRegChecker.checkTx (reg3));
+
+  const auto new1 = Tx (NewScript (ADDR, "foo", 'a'));
+  const auto new2 = Tx (NewScript (OTHER_ADDR, "foo", 'a'));
+  const auto new3 = Tx (NewScript (ADDR, "foo", 'b'));
+
+  CNameMemPool::PackageChecker newChecker;
+  BOOST_CHECK (newChecker.checkTx (new1));
+  BOOST_CHECK (!newChecker.checkTx (new2));
+
+  CNameMemPool::PackageChecker distinctNewChecker;
+  BOOST_CHECK (distinctNewChecker.checkTx (new1));
+  BOOST_CHECK (distinctNewChecker.checkTx (new3));
+
+  const auto upd1 = Tx (UpdateScript (ADDR, "foo", "x"));
+  const auto upd2 = Tx (UpdateScript (ADDR, "foo", "y"));
+
+  CNameMemPool::PackageChecker updChecker;
+  BOOST_CHECK (updChecker.checkTx (upd1));
+  BOOST_CHECK (updChecker.checkTx (upd2));
 }
 
 /* ************************************************************************** */

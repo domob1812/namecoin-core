@@ -1553,6 +1553,12 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::
 
     LOCK(m_pool.cs);
 
+    // PreChecks only checks name operations against the already-committed
+    // mempool.  Track names and NAME_NEW hashes seen within this package as
+    // well, so that conflicting transactions are rejected before any of them
+    // is inserted.
+    CNameMemPool::PackageChecker package_name_checker;
+
     // Do all PreChecks first and fail fast to avoid running expensive script checks when unnecessary.
     for (Workspace& ws : workspaces) {
         if (!PreChecks(args, ws)) {
@@ -1567,6 +1573,14 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::
         if (args.m_client_maxfeerate && CFeeRate(ws.m_modified_fees, ws.m_vsize) > args.m_client_maxfeerate.value()) {
             // Need to set failure here both individually and at package level
             ws.m_state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "max feerate exceeded", "");
+            package_state.Invalid(PackageValidationResult::PCKG_TX, "transaction failed");
+            // Exit early to avoid doing pointless work. Update the failed tx result; the rest are unfinished.
+            results.emplace(ws.m_ptx->GetWitnessHash(), MempoolAcceptResult::Failure(ws.m_state));
+            return PackageMempoolAcceptResult(package_state, std::move(results));
+        }
+
+        if (!package_name_checker.checkTx(*ws.m_ptx)) {
+            ws.m_state.Invalid(TxValidationResult::TX_CONFLICT, "txn-package-name-conflict");
             package_state.Invalid(PackageValidationResult::PCKG_TX, "transaction failed");
             // Exit early to avoid doing pointless work. Update the failed tx result; the rest are unfinished.
             results.emplace(ws.m_ptx->GetWitnessHash(), MempoolAcceptResult::Failure(ws.m_state));

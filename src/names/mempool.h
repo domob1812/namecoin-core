@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2023 Daniel Kraft
+// Copyright (c) 2014-2026 Daniel Kraft
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -69,6 +69,8 @@ private:
   std::map<valtype, Txid> mapNameNews;
 
 public:
+
+  class PackageChecker;
 
   /**
    * Constructs with reference to parent mempool.
@@ -166,6 +168,32 @@ public:
    * causing a conflict.
    */
   bool checkTx (const CTransaction& tx) const;
+
+};
+
+/**
+ * Tracks name operations of transactions that are validated together as a
+ * package, before any of them are inserted into the mempool.  This is
+ * needed because checkTx() only sees the already-committed mempool state.
+ */
+class CNameMemPool::PackageChecker
+{
+
+public:
+
+  /**
+   * Checks the given transaction against the name operations seen earlier
+   * in the package.  Returns false if it conflicts.
+   */
+  bool checkTx (const CTransaction& tx);
+
+private:
+
+  /** NAME_NEW hashes seen in the package.  */
+  std::set<valtype> nameNews;
+
+  /** Names registered by NAME_FIRSTUPDATE in the package.  */
+  std::set<valtype> nameRegs;
 
 };
 
