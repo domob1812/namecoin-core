@@ -59,9 +59,8 @@ def filter_output_indices_by_value(vouts, value):
 class RESTTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
-        self.extra_args = [["-rest", "-blockfilterindex=1", "-valueencoding=hex", "-txindex"], []]
-        # whitelist peers to speed up tx relay / mempool sync
-        self.noban_tx_relay = True
+        self.extra_args = [["-rest", "-blockfilterindex=1", "-txindex", "-valueencoding=hex"], []]
+        self.noban_tx_relay = True  # faster tx relay
 
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()

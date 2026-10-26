@@ -19,8 +19,7 @@ class WalletGroupTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 5
-        # whitelist peers to speed up tx relay / mempool sync
-        self.noban_tx_relay = True
+        self.noban_tx_relay = True  # faster tx relay
         # To make the upstream magic numbers for fees match, we have to
         # make sure the test is using segwit and bech32 addresses.
         args = ["-addresstype=bech32"]
