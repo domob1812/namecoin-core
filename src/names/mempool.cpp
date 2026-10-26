@@ -226,7 +226,12 @@ CNameMemPool::removeExpireConflicts (const std::set<valtype>& expired)
       for (const auto& txid : txidsCopy)
         {
           const CTxMemPool::txiter mit2 = pool.mapTx.find (txid);
-          assert (mit2 != pool.mapTx.end ());
+
+          /* An earlier update in the chain may already have removed this
+             transaction recursively as a descendant.  */
+          if (mit2 == pool.mapTx.end ())
+            continue;
+
           pool.removeRecursive (mit2->GetTx (),
                                 MemPoolRemovalReason::NAME_CONFLICT);
         }
