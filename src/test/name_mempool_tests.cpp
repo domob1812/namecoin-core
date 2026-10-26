@@ -436,6 +436,47 @@ BOOST_FIXTURE_TEST_CASE (expire_conflicts, NameMempoolTestSetup)
   BOOST_CHECK (mempool.mapTx.empty ());
 }
 
+BOOST_FIXTURE_TEST_CASE (expire_conflicts_chain, NameMempoolTestSetup)
+{
+  /* Build a real chain of two updates.  The saved txid set is iterated in
+     hash order, so try different values until the parent is visited before
+     its descendant; then removeRecursive removes both at once.  */
+
+  const CTransaction base = Tx (FirstScript (ADDR, "chain", 'a'));
+
+  bool found = false;
+  for (unsigned i = 0; !found; ++i)
+    {
+      CMutableTransaction mtx;
+      mtx.SetNamecoin ();
+      mtx.vin.push_back (CTxIn (COutPoint (base.GetHash (), 0)));
+      mtx.vout.push_back (CTxOut (
+          COIN, UpdateScript (ADDR, "chain", "first " + std::to_string (i))));
+      const CTransaction parent (mtx);
+
+      mtx.vin.clear ();
+      mtx.vout.clear ();
+      mtx.vin.push_back (CTxIn (COutPoint (parent.GetHash (), 0)));
+      mtx.vout.push_back (
+          CTxOut (COIN, UpdateScript (ADDR, "chain", "second")));
+      const CTransaction child (mtx);
+
+      if (parent.GetHash () < child.GetHash ())
+        {
+          found = true;
+          TryAddToMempool (mempool, Entry (parent));
+          TryAddToMempool (mempool, Entry (child));
+        }
+    }
+
+  BOOST_CHECK_EQUAL (mempool.pendingNameChainLength (Name ("chain")), 2);
+
+  mempool.removeExpireConflicts ({Name ("chain")});
+
+  BOOST_CHECK (!mempool.updatesName (Name ("chain")));
+  BOOST_CHECK (mempool.mapTx.empty ());
+}
+
 BOOST_FIXTURE_TEST_CASE (unexpire_conflicts, NameMempoolTestSetup)
 {
   const auto tx = Tx (FirstScript (ADDR, "foo", 'a'));
